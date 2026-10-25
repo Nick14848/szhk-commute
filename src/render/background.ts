@@ -520,17 +520,19 @@ function train(s: Scene) {
 
   for (let i = firstIdx; i <= lastIdx; i++) {
     if (sceneryFor(i) === "tunnel") continue;
+    const label = STATIONS[i]!.trad;
+    ctx.font = `600 8px ${fontTC}`;
+    const plateW = Math.ceil(ctx.measureText(label).width) + 16;
     const sx0 = Math.round(base + TRAIN_START + i * STATION_LEN - cam);
-    const plate = sx0 + 50;
-    if (plate < -90 || plate > v.W + 10) continue;
+    const plate = Math.round(sx0 + 72 - plateW / 2);
+    if (plate < -plateW || plate > v.W) continue;
     const sy = bottom + 2;
     ctx.fillStyle = "#D9D9D9";
-    ctx.fillRect(plate, sy, 74, 12);
+    ctx.fillRect(plate, sy, plateW, 14);
     ctx.fillStyle = tokens.ink;
-    ctx.font = `600 8px ${fontTC}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(STATIONS[i]!.trad, plate + 37, sy + 6);
+    ctx.fillText(label, plate + plateW / 2, sy + 7);
   }
 
   ctx.fillStyle = "#D7DCE1";

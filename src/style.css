@@ -514,8 +514,27 @@ button:focus-visible {
   font-weight: 700;
 }
 
-.hud-row:nth-child(2) {
+.hud-row:nth-child(2),
+.hud-place {
+  position: relative;
+  justify-content: center;
   height: 44px;
+}
+
+.hud-place #btn-pause {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.place-cluster {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  max-width: calc(100% - 108px);
+  min-width: 0;
+  text-align: center;
 }
 
 .hud-right,
@@ -534,8 +553,13 @@ button:focus-visible {
 }
 
 #line-name {
+  min-width: 0;
+  overflow: hidden;
   color: #1e4e8c;
+  font-weight: 600;
   letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 #day-label,
@@ -545,11 +569,13 @@ button:focus-visible {
 }
 
 #place-name {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 #waters {
@@ -635,13 +661,30 @@ button:focus-visible {
 }
 
 #rail {
+  --stop: 64px;
   display: flex;
-  gap: 10px;
-  margin-top: 6px;
+  justify-content: flex-start;
+  gap: 0;
+  margin-top: 2px;
   overflow-x: auto;
   touch-action: pan-x;
-  padding: 12px 0 2px;
+  padding: 14px 0 0;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 50%;
   scrollbar-width: none;
+}
+
+.rail-stop.clip b,
+.rail-stop.clip::before {
+  visibility: hidden;
+}
+
+.rail-stop:first-child {
+  margin-left: auto;
+}
+
+.rail-stop:last-child {
+  margin-right: auto;
 }
 
 #rail::-webkit-scrollbar {
@@ -651,13 +694,17 @@ button:focus-visible {
 
 .rail-stop {
   position: relative;
-  flex: 0 0 auto;
-  min-width: 76px;
+  flex: 1 1 var(--stop);
+  width: var(--stop);
+  max-width: 96px;
+  min-width: var(--stop);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   color: #535353;
+  text-align: center;
+  scroll-snap-align: center;
 }
 
 .rail-stop::before {
@@ -681,7 +728,7 @@ button:focus-visible {
   top: -8px;
   left: 50%;
   z-index: 0;
-  width: calc(100% + 10px);
+  width: 100%;
   height: 2px;
   background: #c9c9c9;
 }
@@ -702,19 +749,21 @@ button:focus-visible {
 .rail-stop b {
   display: inline-block;
   box-sizing: border-box;
+  max-width: 100%;
   min-height: 22px;
-  padding: 0 8px;
+  padding: 1px 8px;
   border: 2px solid transparent;
   border-radius: 999px;
   font-size: 15px;
   font-weight: 700;
   line-height: 18px;
+  letter-spacing: 0.04em;
+  text-align: center;
   white-space: nowrap;
 }
 
 .rail-stop small {
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  display: none;
 }
 
 .rail-stop.now b {
@@ -739,6 +788,8 @@ button:focus-visible {
   font-size: 13px;
   font-weight: 600;
   line-height: 16px;
+  letter-spacing: 0.02em;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -787,15 +838,42 @@ html[data-layout="land"] #border-row,
 html[data-layout="land"] #rail {
   height: 28px;
   margin-top: 0;
+  padding-top: 8px;
+}
+
+html[data-layout="land"] .rail-stop b {
+  min-height: 16px;
+  padding: 0 6px;
+  font-size: 13px;
+  line-height: 16px;
+}
+
+html[data-layout="land"] .rail-stop::before {
+  top: -7px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+}
+
+html[data-layout="land"] .rail-stop::after {
+  top: -5px;
 }
 
 html[data-layout="land"] #notice {
   height: 32px;
 }
 
-html[data-layout="land"] #rail small,
-html[data-layout="phone"] .rail-stop small {
-  display: none;
+@media (max-width: 420px) {
+  .place-cluster {
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  #line-name {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
 }
 
 html[data-layout="land"] #pad {
@@ -1023,7 +1101,8 @@ html[data-layout="phone"] .score-k {
 }
 
 .achieve {
-  margin: 4px 0 0;
+  width: min(240px, 100%);
+  margin: 10px auto 0;
   padding: 0;
   list-style: none;
 }
@@ -1031,8 +1110,9 @@ html[data-layout="phone"] .score-k {
 .achieve li {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  min-width: 180px;
+  gap: 16px;
+  min-width: 0;
+  padding: 3px 0;
   font-size: 13px;
   color: #8a8a8a;
 }
@@ -1077,8 +1157,9 @@ html[data-layout="phone"] .score-k {
   position: relative;
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  min-height: 26px;
+  gap: 12px;
+  min-height: 30px;
+  padding: 1px 0;
   white-space: nowrap;
 }
 

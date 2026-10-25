@@ -4,6 +4,7 @@ import type { HudModel } from "../render/hud";
 let userLock = false;
 let lastNode = -1;
 let lastMode = "";
+let lastRailW = -1;
 let built = false;
 
 function text(id: string, value: string) {
@@ -19,6 +20,7 @@ export function bindRoute(rail: HTMLElement) {
   rail.addEventListener("wheel", () => {
     userLock = true;
   }, { passive: true });
+  rail.addEventListener("scroll", () => fitRail(rail), { passive: true });
   if (rail.childElementCount === STATIONS.length) return;
   rail.replaceChildren(
     ...STATIONS.map((st) => {
@@ -81,19 +83,30 @@ export function updateRoute(model: HudModel) {
     el.classList.toggle("now", i === current);
     el.classList.toggle("done", current >= 0 && i < current);
   });
-  if (model.node !== lastNode || model.mode !== lastMode) {
+  const railW = Math.round(rail.clientWidth);
+  const widthChanged = railW !== lastRailW;
+  if (widthChanged) {
     userLock = false;
+    lastRailW = railW;
+  }
+  if (model.node !== lastNode || model.mode !== lastMode || widthChanged) {
+    if (model.node !== lastNode || model.mode !== lastMode) userLock = false;
     lastNode = model.node;
     lastMode = model.mode;
     const focus = rails[current];
     if (focus && model.mode === "train" && !userLock) {
-      const railBox = rail.getBoundingClientRect();
-      const box = focus.getBoundingClientRect();
-      rail.scrollLeft += box.left + box.width / 2 - (railBox.left + railBox.width / 2);
+      if (rail.scrollWidth > rail.clientWidth + 1) {
+        const railBox = rail.getBoundingClientRect();
+        const box = focus.getBoundingClientRect();
+        rail.scrollLeft += box.left + box.width / 2 - (railBox.left + railBox.width / 2);
+      } else {
+        rail.scrollLeft = 0;
+      }
     }
     if (model.mode !== "train") rail.scrollLeft = 0;
     paintMap(model);
   }
+  fitRail(rail);
 
   const lines = [model.chips.slice(0, 2), model.chips.slice(2, 4)]
     .map((row) => row.map((c) => c.text).join("  ·  "))
@@ -101,6 +114,16 @@ export function updateRoute(model: HudModel) {
   text("status", lines[0] ?? "");
   const bannerText = lines.length > 1 ? lines[1]! : lines.length === 0 && model.banner ? model.banner[0] : "";
   text("banner", bannerText);
+}
+
+function fitRail(rail: HTMLElement) {
+  const railBox = rail.getBoundingClientRect();
+  if (railBox.width < 8) return;
+  for (const el of rail.querySelectorAll<HTMLElement>(".rail-stop")) {
+    const box = el.getBoundingClientRect();
+    const full = box.left >= railBox.left - 1 && box.right <= railBox.right + 1;
+    el.classList.toggle("clip", !full);
+  }
 }
 
 function paintMap(model: HudModel) {
