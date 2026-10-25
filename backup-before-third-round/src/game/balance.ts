@@ -1,0 +1,178 @@
+import { STATIONS } from "../data/copy";
+import { dayOf, local, onTravelator, stationIndexAt, TRAIN_START } from "./stages";
+
+/**
+ * 玩法单位和画面宽度分开。
+ * 速度、跳跃、生成间距都用这里的数。改画面大小不会改这些数。
+ *
+ * 第一趟通勤的体验目标大约 3 到 4 分钟（含准备和过场）。
+ * 这是设计目标，不是实测通关时间。
+ */
+
+export const WORLD_W = 256;
+export const WORLD_H = 168;
+export const GROUND_Y = 132;
+export const PLAYER_VIEW_X = 52;
+
+export const STEP = 1 / 60;
+export const MAX_CATCHUP = 4;
+export const FRAME_CAP = 0.1;
+
+export const PREP_SECONDS = 0.7;
+export const PREP_SECONDS_REDUCED = 0.2;
+export const RAMP_SECONDS = 7;
+export const FIRST_LOOKAHEAD = 7.4;
+export const SAFE_AFTER_DOOR = 1.15;
+
+export const SPEED_EASE = 62;
+export const SPEED_BASE = 74;
+export const SPEED_LATE = 102;
+export const TRAVELATOR = 1.12;
+
+export const PHYS = {
+  gravity: 900,
+  jump: 360,
+  jump2: 300,
+  fastFall: 2.4,
+  coyote: 0.1,
+  buffer: 0.12,
+};
+
+/** 碰撞用固定世界尺寸，不读精灵外框。 */
+export const HURT = {
+  playerHalf: 6,
+  standTop: 28,
+  duckTop: 14,
+  duckBack: 10,
+  duckFront: 12,
+  personHalf: 6,
+  personTop: 22,
+  daigouHalf: 8,
+  queueBack: 16,
+  queueFront: 16,
+  gateHalf: 8,
+  gateTop: 18,
+  overheadHalf: 9,
+  overheadBottom: 22,
+  overheadTop: 32,
+};
+
+const PICKUPS = new Set(["water", "octopus", "permit", "concession"]);
+
+export function parseTimeScale(raw: number): number {
+  if (!Number.isFinite(raw)) return 1;
+  if (raw < 1 || raw > 12) return 1;
+  if (Math.floor(raw) !== raw) return 1;
+  return raw;
+}
+
+export function smoothstep(t: number) {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * (3 - 2 * x);
+}
+
+export function progressOf(px: number) {
+  const along = local(px);
+  const station = stationIndexAt(px);
+  const before = Math.min(1, along / Math.max(1, TRAIN_START));
+  if (station < 0) return before * 0.3;
+  return 0.3 + ((station + 1) / STATIONS.length) * 0.7;
+}
+
+/** 世界单位/秒。不读取视野宽度。 */
+export function speedAt(px: number, runTime: number) {
+  if (runTime <= 0) return 0;
+  const day = Math.max(1, dayOf(px));
+  const dayAdd = Math.min(16, (day - 1) * 3);
+  const cruise = SPEED_BASE + progressOf(px) * (SPEED_LATE - SPEED_BASE) + dayAdd;
+  const v = SPEED_EASE + (cruise - SPEED_EASE) * smoothstep(runTime / RAMP_SECONDS);
+  return onTravelator(px) ? v * TRAVELATOR : v;
+}
+
+/** 脚高于 height 的时间（秒）。单跳。 */
+export function jumpClearance(height: number) {
+  const g = PHYS.gravity;
+  const v = PHYS.jump;
+  const disc = v * v - 2 * g * height;
+  if (disc <= 0) return 0;
+  const s = Math.sqrt(disc);
+  return (v + s) / g - (v - s) / g;
+}
+
+export function npcSpeed(kind: string) {
+  if (kind === "mask" || kind === "phone" || kind === "inspector") return 16;
+  if (kind === "daigou") return 10;
+  if (kind === "sams") return -24;
+  return 0;
+}
+
+export function obstacleWidth(kind: string) {
+  if (kind === "queue") return HURT.queueBack + HURT.queueFront;
+  if (kind === "daigou") return HURT.daigouHalf * 2;
+  if (kind === "gate") return HURT.gateHalf * 2;
+  if (kind === "sams" || kind === "lens") return HURT.overheadHalf * 2;
+  return HURT.personHalf * 2;
+}
+
+export function spanOf(kind: string) {
+  return HURT.playerHalf * 2 + obstacleWidth(kind);
+}
+
+export function passTime(span: number, speed: number, npc: number) {
+  return span / Math.max(12, speed - npc);
+}
+
+function obstacleTop(kind: string) {
+  if (kind === "gate") return HURT.gateTop;
+  return HURT.personTop;
+}
+
+/** 当前速度下，这个障碍能不能靠允许的跳跃过去。头顶障碍靠蹲，不在这里卡掉。 */
+export function canClear(kind: string, speed: number, allowDouble: boolean) {
+  if (PICKUPS.has(kind) || kind === "sams" || kind === "lens") return true;
+  const need = passTime(spanOf(kind), speed, npcSpeed(kind));
+  const single = jumpClearance(obstacleTop(kind)) * 0.9;
+  if (need <= single) return true;
+  if (!allowDouble) return false;
+  return need <= single + 0.28;
+}
+
+export function gapSeconds(progress: number, roll: number) {
+  return 1.9 - progress * 0.55 + roll * 0.25;
+}
+
+/** 关门时玩家停在这条世界坐标，接缝刚好在画面右缘外面。 */
+export function seamHold(boundary: number) {
+  return boundary - (WORLD_W - PLAYER_VIEW_X);
+}
+
+/**
+ * 固定步长积分。超长的一帧先截到 FRAME_CAP，再最多追 MAX_CATCHUP 步，剩下的丢掉。
+ * 正常 1 倍速时，30/60/120Hz 走完同样的墙钟，距离应当几乎一样。
+ */
+export function integrate(dts: number[], timeScale = 1) {
+  let acc = 0;
+  let distance = PLAYER_VIEW_X;
+  let sim = 0;
+  let runTime = 0;
+  const prep = PREP_SECONDS;
+  let clock = 0;
+  for (const raw of dts) {
+    const dt = Math.min(FRAME_CAP, Math.max(0, raw));
+    clock += dt;
+    acc += dt * timeScale;
+    let n = 0;
+    const budget = timeScale === 1 ? MAX_CATCHUP : timeScale;
+    while (acc >= STEP && n < budget) {
+      if (clock > prep) {
+        runTime += STEP;
+        distance += speedAt(distance, runTime) * STEP;
+      }
+      sim += STEP;
+      acc -= STEP;
+      n++;
+    }
+    if (n >= budget) acc = 0;
+  }
+  return { distance, sim, runTime };
+}

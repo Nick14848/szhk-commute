@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>深港通勤模拟器 · By 尼克菜Nick</title>
+    <meta
+      name="description"
+      content="香港赚钱深圳花。从福田口岸跑上东铁线，躲人、搬大水、和阿婆抢座位。By 尼克菜Nick"
+    />
+    <meta property="og:title" content="深港通勤模拟器" />
+    <meta property="og:description" content="香港赚钱深圳花。从福田口岸跑上东铁线。By 尼克菜Nick" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="深港通勤模拟器" />
+    <meta name="twitter:description" content="香港赚钱深圳花。从福田口岸跑上东铁线。By 尼克菜Nick" />
+    <meta name="twitter:image" content="og.png" />
+    <meta name="theme-color" content="#F7F7F7" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="深港通勤" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="view" aria-label="深港通勤模拟器游戏画面"></canvas>
+      <div id="overlay"></div>
+      <button id="btn-pause" type="button" hidden>暂停</button>
+      <p id="layout-note" hidden>屏幕太矮，竖过来更好玩。</p>
+      <div id="pad" hidden>
+        <button id="btn-duck" type="button">蹲</button>
+        <button id="btn-jump" type="button">跳</button>
+      </div>
+      <div id="paused" hidden>
+        <p>暂停了</p>
+        <button id="btn-resume" type="button">继续通勤</button>
+        <button id="btn-restart" type="button">重来</button>
+      </div>
+      <div id="safe-probe" aria-hidden="true"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

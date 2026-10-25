@@ -1,0 +1,19 @@
+{
+  "name": "szhk-commute",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit && node scripts/check-assets.mjs && node scripts/sim-check.mjs",
+    "test": "node scripts/sim-check.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0"
+  }
+}
