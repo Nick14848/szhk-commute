@@ -37,7 +37,7 @@ export function spriteFor(e: Entity, moving: boolean): Sprite {
     case "inspector":
     case "staff":
     case "queue":
-      return actorFrame(e.kind === "queue" ? "walker" : e.kind, frame, mode);
+      return actorFrame(e.kind === "queue" ? "walker" : e.kind, frame, mode, Math.floor(e.phase * 2) % 2);
     default:
       return SPR[e.kind as "water"] ?? SPR.water;
   }

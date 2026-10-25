@@ -1,11 +1,11 @@
 import { STATIONS } from "../data/copy";
-import { dayOf, local, onTravelator, stationIndexAt, TRAIN_START } from "./stages";
+import { dayOf, local, travelatorBoost, TRAIN_START } from "./stages";
 
 /**
  * 玩法单位和画面宽度分开。
  * 速度、跳跃、生成间距都用这里的数。改画面大小不会改这些数。
  *
- * 第一趟通勤的体验目标大约 3 到 4 分钟（含准备和过场）。
+ * 第一趟通勤的体验目标大约 4.5 到 5.5 分钟（含准备和过场）。
  * 这是设计目标，不是实测通关时间。
  */
 
@@ -28,7 +28,7 @@ export const SEAT_LOSE_SEC = 8;
 
 export const SPEED_EASE = 62;
 export const SPEED_BASE = 74;
-export const SPEED_LATE = 102;
+export const SPEED_LATE = 112;
 export const TRAVELATOR = 1.12;
 
 export const PHYS = {
@@ -77,20 +77,20 @@ export function smoothstep(t: number) {
 
 export function progressOf(px: number) {
   const along = local(px);
-  const station = stationIndexAt(px);
   const before = Math.min(1, along / Math.max(1, TRAIN_START));
-  if (station < 0) return before * 0.3;
-  return 0.3 + ((station + 1) / STATIONS.length) * 0.7;
+  if (along < TRAIN_START) return before * 0.3;
+  return 0.3 + ((along - TRAIN_START) / (STATIONS.length * 1300)) * 0.7;
 }
 
 /** 世界单位/秒。不读取视野宽度。 */
 export function speedAt(px: number, runTime: number) {
   if (runTime <= 0) return 0;
   const day = Math.max(1, dayOf(px));
+  // Later days stay near the previous day's finish rather than resetting to 74.
   const dayAdd = Math.min(16, (day - 1) * 3);
-  const cruise = SPEED_BASE + progressOf(px) * (SPEED_LATE - SPEED_BASE) + dayAdd;
+  const cruise = day > 1 ? Math.min(128, SPEED_LATE + dayAdd + progressOf(px) * 3) : SPEED_BASE + progressOf(px) * (SPEED_LATE - SPEED_BASE);
   const v = SPEED_EASE + (cruise - SPEED_EASE) * smoothstep(runTime / RAMP_SECONDS);
-  return onTravelator(px) ? v * TRAVELATOR : v;
+  return Math.min(140, v * (1 + (TRAVELATOR - 1) * travelatorBoost(px)));
 }
 
 /** 脚高于 height 的时间（秒）。单跳。 */
@@ -155,7 +155,7 @@ export function canClear(kind: string, speed: number, allowDouble: boolean) {
 }
 
 export function gapSeconds(progress: number, roll: number) {
-  return 1.72 - progress * 0.78 + roll * 0.2;
+  return 1.72 - progress * 0.72 + roll * 0.2;
 }
 
 /** 2 或 3 个学童并排走时，整组宽度仍落在二段跳的滞空里。 */

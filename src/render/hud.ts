@@ -188,24 +188,31 @@ export function drawKeyHint(ctx: Ctx, v: View, text: string) {
 }
 
 export function drawSeatOverlay(ctx: Ctx, v: View, seat: SeatEvent, note: string | null, keys: boolean) {
-  const top = v.hudCss + 52;
+  const top = v.hudCss + 32;
   const barW = Math.min(300, v.cssW - 64);
   const x = Math.round((v.cssW - barW) / 2);
+  ctx.fillStyle = tokens.steelDark;
+  ctx.fillRect(x - 16, top - 10, barW + 32, 146);
+  ctx.strokeStyle = tokens.steelEdge;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x - 16, top - 10, barW + 32, 146);
+  ctx.fillStyle = tokens.brandYellow;
+  ctx.fillRect(x - 16, top - 10, barW + 32, 3);
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = tokens.inkDeep;
+  ctx.fillStyle = tokens.brandWhite;
   ctx.font = `600 18px ${fontSC}`;
   ctx.fillText(UI.seatTitle, v.cssW / 2, top + 18);
-  bar(ctx, x, top + 46, barW, UI.you, seat.player, tokens.line);
+  bar(ctx, x, top + 46, barW, UI.you, seat.player, tokens.brandYellow);
   bar(ctx, x, top + 82, barW, UI.grandma, seat.grandma, tokens.alert);
   ctx.textAlign = "center";
-  ctx.fillStyle = tokens.inkDeep;
+  ctx.fillStyle = tokens.brandWhite;
   ctx.font = `600 15px ${fontSC}`;
   ctx.fillText(note ?? (keys ? UI.seatHintKeys : UI.seatHint), v.cssW / 2, top + 116);
 }
 
 function bar(ctx: Ctx, x: number, y: number, w: number, label: string, amount: number, color: string) {
-  ctx.fillStyle = tokens.ink;
+  ctx.fillStyle = tokens.brandWhite;
   ctx.font = `600 13px ${fontSC}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";

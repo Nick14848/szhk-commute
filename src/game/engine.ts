@@ -66,6 +66,7 @@ import {
   segmentAt,
   inSafeJoin,
   stationIndexAt,
+  travelatorRanges,
   type Kind,
   type StageId,
 } from "./stages";
@@ -320,6 +321,9 @@ export class Game {
       gates: SEGMENTS[1]!.start + 80,
       exit: SEGMENTS[0]!.end - 110,
       bridge: SEGMENTS[2]!.start + 180,
+      belt1: travelatorRanges()[0]![0] + 100,
+      belt2: travelatorRanges()[1]![0] + 100,
+      belt3: travelatorRanges()[2]![0] + 100,
       join: SEGMENTS[2]!.end - 110,
       platform: SEGMENTS[3]!.start + 80,
       train: TRAIN_START + STATION_LEN * 4 + 40,
@@ -339,7 +343,7 @@ export class Game {
       show("gate", 70);
       show("kid", 140);
       show("permit", 190);
-    } else if (shot === "bridge") {
+    } else if (shot === "bridge" || shot.startsWith("belt")) {
       show("sign", 90);
       show("water", 140);
       show("office", 190);
@@ -836,12 +840,10 @@ export class Game {
     } else {
       this.noDoubleUntil = this.playTime + SEAT_LOSE_SEC;
       this.toldLock = false;
-      this.entities = this.entities.filter((e) => {
-        if (PICKUPS.has(e.kind) || e.x < px) return true;
-        if (e.x > px + 180) return true;
-        return canClear(e.kind, Math.max(SPEED_EASE, this.speed), false);
-      });
-      this.nextSpawn = Math.max(this.nextSpawn, px + 160);
+      // Clear the already-generated GROUP, not only each member's single test.
+      // Future spawning also validates the actual single-jump capability.
+      this.entities = this.entities.filter((e) => PICKUPS.has(e.kind) || e.x < px - 30);
+      this.nextSpawn = Math.max(this.nextSpawn, px + Math.max(160, this.speed * 1.5));
     }
     this.safeUntil = Math.max(this.safeUntil, this.time + 0.6);
     this.seat = null;
@@ -873,7 +875,7 @@ export class Game {
           const phase = this.rng();
           for (let i = 0; i < count; i++) this.entities.push(this.make("kid", x + i * step, 0, phase + i * 0.17));
           const covered = (count - 1) * step + spanOf("kid");
-          this.nextSpawn = x + speedThere * gapSeconds(progress, this.rng()) + covered;
+          this.nextSpawn = x + speedThere * (gapSeconds(progress, this.rng()) + 0.35) + covered;
           continue;
         }
       }
@@ -887,7 +889,8 @@ export class Game {
       const phase = this.rng();
       this.entities.push(this.make(kind, x, OVERHEAD.has(kind) ? OVERHEAD_Y : 0, phase));
 
-      const gap = speedThere * gapSeconds(progress, this.rng()) + spanOf(kind);
+      const recovery = kind === "sign" || kind === "queue" ? 0.35 : 0;
+      const gap = speedThere * (gapSeconds(progress, this.rng()) + recovery) + spanOf(kind);
       const r = this.rng();
       const mid = x + gap * 0.42;
       if (r < 0.48 - progress * 0.12) {
@@ -1007,13 +1010,14 @@ export class Game {
     const dist = next.b.x0 - pb.x1;
     const rel = Math.max(20, this.speed - walkSpeed(next.e.kind));
     if (OVERHEAD.has(next.e.kind)) {
-      this.keyDuck = dist < rel * 0.32 && dist > -10;
+      this.keyDuck = dist < rel * 0.5;
       this.syncDuck();
       return;
     }
     this.keyDuck = false;
     this.syncDuck();
     if (this.player.grounded && dist > 0 && dist < rel * 0.16) this.press();
+    if (!this.player.grounded && this.player.jumps === 1 && this.player.vy < 10 && dist < rel * 0.2 && next.b.x1 > pb.x0 && this.canDouble()) this.press();
   }
 
   private settleLift() {
@@ -1039,18 +1043,16 @@ export class Game {
     const liftPx = lift * v.pd;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = "#E6E2DA";
+    ctx.fillStyle = "#252B32";
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    const groundPx = v.offsetY + liftPx + v.G * v.pd;
-    ctx.fillStyle = "#D2CDC4";
-    ctx.fillRect(0, groundPx, this.canvas.width, Math.max(0, this.canvas.height - groundPx));
     ctx.beginPath();
-    ctx.rect(v.offsetX, v.offsetY, v.W * v.pd, v.H * v.pd);
+    ctx.rect(v.offsetX, v.frameTop, v.W * v.pd, v.frameBottom - v.frameTop);
     ctx.clip();
     ctx.setTransform(v.pd, 0, 0, v.pd, v.offsetX, v.offsetY + liftPx);
-    ctx.fillStyle = "#E6E2DA";
-    ctx.fillRect(-8, -72, v.W + 16, 72);
-    drawWorld(ctx, v, this.cam, this.time, this.reduced);
+    // Decorative vertical extension uses the exact same scale/projection as the
+    // playable world. No extra forward visibility or changed collision geometry.
+    const sceneryView = { ...v, T: Math.floor((v.frameTop - v.offsetY - liftPx) / v.pd), H: Math.ceil((v.frameBottom - v.offsetY - liftPx) / v.pd) };
+    drawWorld(ctx, sceneryView, this.cam, this.time, this.reduced);
 
     if (this.phase !== "seat") {
       const sorted = [...this.entities].sort((a, b) => a.y - b.y);
@@ -1058,7 +1060,7 @@ export class Game {
       this.drawPlayer();
     } else {
       ctx.fillStyle = "rgba(28, 32, 38, 0.38)";
-      ctx.fillRect(0, 0, v.W, v.H);
+      ctx.fillRect(0, sceneryView.T, v.W, sceneryView.H - sceneryView.T);
       this.drawSeatScene();
     }
     this.drawFloaters();
@@ -1152,10 +1154,7 @@ export class Game {
     if (!seat) return;
     const cx = Math.round(v.W * 0.58);
     const frame = Math.floor(this.time * 8);
-    ctx.fillStyle = "#D7DCE1";
-    ctx.fillRect(cx - 10, v.G - 16, 18, 6);
-    ctx.fillStyle = "#8E979E";
-    ctx.fillRect(cx - 10, v.G - 20, 18, 4);
+    // The real continuous bench stays in the background; no floating seat prop.
     if (seat.done && seat.won) {
       drawAnchored(ctx, playerSprite("idle", 0), cx - 28, v.G);
       drawAnchored(ctx, actorFrame("elder", 0, "idle"), cx + 24, v.G, true);

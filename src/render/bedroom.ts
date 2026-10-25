@@ -26,8 +26,8 @@ export function showBedroom(
   const save = loadSave();
   const reduced = prefersReducedMotion();
   const durations: Record<PhaseName, number> = reduced
-    ? { alarm: 0.28, wake: 0.24, sit: 0.28, stand: 0.2, walk: 0.55, leave: 0.24 }
-    : { alarm: 0.55, wake: 0.45, sit: 0.55, stand: 0.35, walk: 1.2, leave: 0.4 };
+    ? { alarm: 0.1, wake: 0.12, sit: 0.1, stand: 0.12, walk: 0.3, leave: 0.12 }
+    : { alarm: 0.22, wake: 0.28, sit: 0.22, stand: 0.26, walk: 0.9, leave: 0.18 };
   const order: PhaseName[] = ["alarm", "wake", "sit", "stand", "walk", "leave"];
 
   const screen = document.createElement("main");
@@ -36,9 +36,12 @@ export function showBedroom(
   canvas.className = "room";
   const title = document.createElement("h1");
   title.textContent = UI.titleTrad;
-  const by = document.createElement("p");
-  by.className = "sign-by";
-  by.textContent = UI.by;
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "home-eyebrow";
+  eyebrow.textContent = "SZ ⇄ HK  /  08:08 AM";
+  const tagline = document.createElement("p");
+  tagline.className = "brand-tagline";
+  tagline.textContent = UI.lede;
   const row = document.createElement("div");
   row.className = "bed-actions";
   const start = document.createElement("button");
@@ -59,7 +62,7 @@ export function showBedroom(
   const meta = document.createElement("p");
   meta.className = "meta";
   meta.textContent = save ? UI.best(save.bestScore, save.bestStation) : UI.noRecord;
-  screen.append(canvas, title, by, meta, row);
+  screen.append(eyebrow, title, tagline, canvas, meta, row);
   overlay.replaceChildren(screen);
   overlay.classList.add("on");
 
@@ -92,7 +95,7 @@ export function showBedroom(
     canvas.width = Math.max(1, Math.round(cssW * dpr));
     canvas.height = Math.max(1, Math.round(cssH * dpr));
     ctx.setTransform(canvas.width / ROOM_W, 0, 0, canvas.height / ROOM_H, 0, 0);
-    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingEnabled = false;
   };
 
   const phaseAt = () => {
@@ -191,15 +194,13 @@ function drawRoom(ctx: CanvasRenderingContext2D, name: PhaseName | "sleep", p: n
   drawClock(ctx, 128, bedTop, floor, name === "alarm", elapsed);
   drawDesk(ctx, floor, elapsed);
   drawMess(ctx, floor);
-  const doorOpen = name === "leave" ? p : name === "walk" && p > 0.82 ? (p - 0.82) / 0.18 : 0;
-  drawDoor(ctx, floor, doorOpen, "hole");
+  drawDoor(ctx, floor, "hole");
 
-  const edge = { x: bedX + 46, y: bedTop + 16 };
-  const stood = { x: bedX + 78, y: floor };
-  const doorX = 278;
+  const edge = { x: bedX + 70, y: bedTop + 18 };
+  const stood = { x: bedX + 96, y: floor };
+  const doorX = 286;
   const pickedUp = name === "stand" && p > 0.72;
   const carrying = name === "walk" || name === "leave" || pickedUp;
-  const inDoor = doorOpen > 0.4;
   if (!carrying) {
     ctx.fillStyle = PAL.out;
     ctx.fillRect(bedX + 70, floor - 12, 12, 12);
@@ -208,28 +209,39 @@ function drawRoom(ctx: CanvasRenderingContext2D, name: PhaseName | "sleep", p: n
     ctx.fillStyle = PLAYER_PACK;
     ctx.fillRect(bedX + 74, floor - 12, 4, 3);
   }
-  if (!inDoor && (name === "sleep" || name === "alarm" || name === "wake")) {
+  if (name === "sleep" || name === "alarm" || name === "wake") {
     const rise = name === "wake" ? p : 0;
-    const sx = bedX + 16 + (edge.x - 28 - (bedX + 16)) * rise;
-    const sy = bedTop + 4 + (edge.y - 18 - (bedTop + 4)) * rise;
-    drawSleeper(ctx, sx, sy, name === "wake", elapsed);
+    const x = bedX + 64 + (edge.x - (bedX + 64)) * rise;
+    const y = bedTop + 5 + (edge.y - (bedTop + 5)) * rise;
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.rotate(-Math.PI / 2 * (1 - rise));
+    drawAnchored(ctx, playerSprite("idle", 0, 0, false), 0, 0);
+    ctx.restore();
+    if (rise < 0.35) {
+      px(ctx, bedX + 49, bedTop + 3, 33, 9, "#97B2C8");
+      px(ctx, bedX + 49, bedTop + 3, 33, 2, "#C7DAE7");
+    }
     if (name !== "wake") drawZzz(ctx, bedX + 40, bedTop - 10, elapsed);
-  } else if (!inDoor && name === "sit") {
-    const wakeX = edge.x - 26;
-    const wakeY = edge.y + 11;
-    const x = wakeX + (edge.x - wakeX) * p;
-    const y = wakeY + (edge.y - wakeY) * p;
-    drawAnchored(ctx, playerSprite("sit", 0, 0, false), x, y);
-  } else if (!inDoor && name === "stand") {
+  } else if (name === "sit") {
+    drawAnchored(ctx, playerSprite("idle", 0, 0, false), edge.x, edge.y);
+  } else if (name === "stand") {
     const x = edge.x + (stood.x - edge.x) * p;
     const y = edge.y + (stood.y - edge.y) * p;
-    drawAnchored(ctx, playerSprite(p < 0.45 ? "sit" : "idle", 0, 0, pickedUp), x, y);
-  } else if (!inDoor) {
+    drawAnchored(ctx, playerSprite("idle", 0, 0, pickedUp), x, y);
+  } else {
     const walked = name === "walk" ? p : 1;
     const x = stood.x + (doorX - stood.x) * walked;
     drawAnchored(ctx, playerSprite("walk", Math.floor(x / 8)), x, floor);
   }
-  drawDoor(ctx, floor, doorOpen, "slab");
+  drawDoor(ctx, floor, "slab");
+  // A few purposeful room details, not random pixels.
+  px(ctx, 18, 30, 57, 29, "#B29271");
+  px(ctx, 20, 32, 53, 25, "#D8B791");
+  px(ctx, 25, 36, 14, 16, "#F1E9D6");
+  px(ctx, 44, 37, 21, 12, "#DDE7E7");
+  px(ctx, 27, 39, 10, 1, "#A2ADA9");
+  px(ctx, 27, 43, 8, 1, "#A2ADA9");
 }
 
 function drawPort(ctx: CanvasRenderingContext2D, _elapsed: number) {
@@ -353,6 +365,8 @@ function drawDesk(ctx: CanvasRenderingContext2D, floor: number, _elapsed: number
   ctx.fillRect(166, deskTop + 4, 90, 2);
 
   drawMac(ctx, 186, deskTop);
+  px(ctx, 172, deskTop - 4, 11, 4, "#648A93");
+  px(ctx, 172, deskTop - 3, 10, 2, "#F5EDDE");
 
   const bottleX = 230;
   ctx.fillStyle = "#B7C3CC";
@@ -367,16 +381,8 @@ function drawDesk(ctx: CanvasRenderingContext2D, floor: number, _elapsed: number
 
 function drawMess(ctx: CanvasRenderingContext2D, floor: number) {
   meituan(ctx, 8, floor);
-  meituan(ctx, 86, floor);
   meituan(ctx, 196, floor);
-  flatBottle(ctx, 40, floor - 5);
-  wad(ctx, 62, floor - 7);
   flatBottle(ctx, 154, floor - 5);
-  wad(ctx, 292, floor - 7);
-  ctx.fillStyle = "#F7F7F7";
-  ctx.fillRect(74, floor - 3, 10, 2);
-  ctx.fillStyle = "#D7D0C4";
-  ctx.fillRect(75, floor - 2, 7, 1);
 }
 
 function meituan(ctx: CanvasRenderingContext2D, x: number, floor: number) {
@@ -411,15 +417,18 @@ function wad(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.fillRect(x + 4, y, 1, 4);
 }
 
-function drawDoor(ctx: CanvasRenderingContext2D, floor: number, open = 0, part: "all" | "hole" | "slab" = "all") {
-  const x = 264 + Math.round(open * 16);
+function drawDoor(ctx: CanvasRenderingContext2D, floor: number, part: "hole" | "slab") {
+  const x = 288;
   if (part !== "slab") {
     ctx.fillStyle = "#1C242C";
-    ctx.fillRect(264, 36, 18, floor - 36);
+    ctx.fillRect(264, 36, 46, floor - 36);
+    ctx.fillStyle = "#383F45";
+    ctx.fillRect(263, 34, 49, 3);
+    ctx.fillRect(263, 34, 3, floor - 34);
   }
   if (part === "hole") return;
   const top = 36;
-  const w = 46;
+  const w = 24;
   ctx.fillStyle = "#5C6770";
   ctx.fillRect(x, top, w, floor - top);
   ctx.fillStyle = "#9AA6AE";

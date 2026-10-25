@@ -1,13 +1,10 @@
-/**
- * 玩家能读到的字都在这里。粤语对白、称号和汇率梗待尼克菜审稿。
- * 汇率是梗，不是报价。
- */
+import { migrateProgress, ROUTE_VERSION } from "./route";
 
 export const UI = {
-  titleTrad: "深港通勤模擬器",
+  titleTrad: "深港通勤模拟器",
   titleEn: "Shenzhen–Hong Kong Commuter",
-  by: "By 尼克菜Nick",
-  lede: "香港赚钱深圳花，开启自己的深港通勤自律人生",
+  by: "作者",
+  lede: "香港赚钱深圳花",
   start: "开始通勤",
   again: "再通勤一次",
   save: "保存通关纸",
@@ -115,12 +112,12 @@ export function arrival(st: Station, next: Station | undefined): [string, string
 }
 
 export const TITLES = [
-  { min: 0, name: "通勤小白", stamp: "小白" },
-  { min: 300, name: "渐入佳境", stamp: "佳境" },
-  { min: 700, name: "深港双城卷王", stamp: "卷王" },
-  { min: 1200, name: "大水教父", stamp: "大水" },
-  { min: 2200, name: "薄肌教父", stamp: "薄肌" },
-  { min: 4000, name: "版本答案", stamp: "答案" },
+  { min: 0, name: "通勤小白", stamp: "小白", type: "起步适应型", quote: "闸机还没认熟，生活已经催你出发。", icon: "ticket" },
+  { min: 300, name: "渐入佳境", stamp: "佳境", type: "路线熟练型", quote: "八达通一响，手速就上线。", icon: "route" },
+  { min: 700, name: "深港通勤", stamp: "双城", type: "双城行动型", quote: "两座城，一条熟练的通勤线。", icon: "city" },
+  { min: 1200, name: "大水教父", stamp: "大水", type: "大水补给型", quote: "路可以堵，大水必须带走。", icon: "water" },
+  { min: 2200, name: "薄肌教父", stamp: "薄肌", type: "自律耐力型", quote: "每次换乘，都是生活的负重训练。", icon: "power" },
+  { min: 4000, name: "版本答案", stamp: "答案", type: "通勤掌控型", quote: "你不是在赶车，你就是时刻表。", icon: "clock" },
 ] as const;
 
 export function titleFor(score: number) {
@@ -179,10 +176,11 @@ export function normalizeSave(raw: unknown): SaveData | null {
   const bestStation = data.bestStation;
   if (typeof bestScore !== "number" || !Number.isFinite(bestScore) || bestScore < 0) return null;
   if (typeof bestStation !== "string" || bestStation.length === 0) return null;
-  const bestDay = typeof data.bestDay === "number" && Number.isInteger(data.bestDay) && data.bestDay >= 1 ? data.bestDay : 1;
+  const bestDay = typeof data.bestDay === "number" && Number.isSafeInteger(data.bestDay) && data.bestDay >= 1 ? data.bestDay : 1;
   const progress = data.bestProgress;
-  const bestProgress = typeof progress === "number" && Number.isFinite(progress) && progress >= 0 ? progress : undefined;
-  return { v: bestProgress === undefined ? 1 : 2, bestScore, bestStation, bestDay, bestProgress };
+  const bestProgress = typeof progress === "number" && Number.isFinite(progress) && progress >= 0 && progress < Number.MAX_SAFE_INTEGER / 2 ? progress : undefined;
+  const migrated = bestProgress === undefined ? undefined : data.v === ROUTE_VERSION ? bestProgress : migrateProgress(bestProgress);
+  return { v: bestProgress === undefined ? 1 : ROUTE_VERSION, bestScore: Math.floor(bestScore), bestStation, bestDay, bestProgress: migrated };
 }
 
 /** 最高分和最远进度分开取最大。地点跟最远进度走，不跟最高分那一局走。 */
@@ -194,7 +192,7 @@ export function mergeRecord(prev: SaveData | null, score: number, progress: numb
   const bestProgress = Math.max(safeProgress, prevProgress);
   const farther = safeProgress >= prevProgress;
   return {
-    v: 2,
+    v: ROUTE_VERSION,
     bestScore,
     bestProgress,
     bestStation: farther ? place : (prev?.bestStation || place),
@@ -267,7 +265,7 @@ function combineSaves(a: SaveData, b: SaveData): SaveData {
   const known = ap !== null ? a : b;
   const other = ap !== null ? b : a;
   return {
-    v: 2,
+    v: ROUTE_VERSION,
     bestScore: Math.max(known.bestScore, other.bestScore),
     bestProgress: known.bestProgress,
     bestStation: known.bestStation,
@@ -304,7 +302,13 @@ export function loadSave(): SaveData | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return memorySave;
-    return keepMemory(normalizeSave(JSON.parse(raw)));
+    const parsed = JSON.parse(raw);
+    const next = keepMemory(normalizeSave(parsed));
+    if (next?.bestProgress !== undefined && parsed?.v !== ROUTE_VERSION) {
+      // Idempotent upgrade. A write failure still returns the in-memory record.
+      localStorage.setItem(SAVE_KEY, JSON.stringify(next));
+    }
+    return next;
   } catch {
     return memorySave;
   }

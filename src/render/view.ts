@@ -6,7 +6,7 @@ export type View = {
   dpr: number;
   cssW: number;
   cssH: number;
-  /** 一个世界像素占多少设备像素（整数） */
+  /** Uniform device-pixel scale. Prefer integers only when they fit closely. */
   pd: number;
   W: number;
   H: number;
@@ -20,6 +20,8 @@ export type View = {
   /** 舞台在画布 backing store 上的左上角（设备像素） */
   offsetX: number;
   offsetY: number;
+  frameTop: number;
+  frameBottom: number;
   /** 高度不够，地面仍留在屏幕里，顶被裁掉 */
   short: boolean;
   controls: { duck: Rect; jump: Rect; big: boolean } | null;
@@ -29,8 +31,8 @@ export type View = {
 export function layoutReserve(cssW: number, cssH: number, coarse: boolean) {
   const landscape = coarse && cssH <= 520 && cssW > cssH;
   const phone = coarse || cssW < 760;
-  const hudCss = landscape ? 126 : phone ? 156 : 160;
-  const padCss = !coarse ? 8 : landscape ? 8 : 78;
+  const hudCss = landscape ? 136 : 160;
+  const padCss = !coarse ? 18 : landscape ? 8 : 88;
   const sideCss = landscape ? 72 : 0;
   return { hudCss, padCss, sideCss, landscape, phone };
 }
@@ -51,14 +53,16 @@ export function computeView(
   const availW = Math.max(1, (cssW - box.sideCss * 2) * dpr);
   const availH = Math.max(1, (cssH - hudCss - bottomGap) * dpr);
   const fit = Math.min(availW / WORLD_W, availH / WORLD_H);
-  let pd = Math.floor(fit);
-  if (pd < 1 || dpr < 1.5) pd = Math.max(0.01, fit);
+  const integerFit = Math.floor(fit);
+  // An iPhone at DPR 2 used to shrink 375px down to 256px just to snap the
+  // scale. Preserve the complete 256-unit view AND use the available screen.
+  const pd = Math.max(0.01, integerFit >= 1 && integerFit / fit >= 0.94 ? integerFit : fit);
   const stageW = WORLD_W * pd;
   const stageH = WORLD_H * pd;
   const offsetX = Math.floor((cssW * dpr - stageW) / 2);
   const top = Math.floor(hudCss * dpr);
   const slack = availH - stageH;
-  const offsetY = top + Math.max(0, Math.floor(slack / 2));
+  const offsetY = top + Math.max(0, Math.floor(slack * 0.66));
 
   return {
     dpr,
@@ -76,6 +80,8 @@ export function computeView(
     coarse,
     offsetX,
     offsetY,
+    frameTop: top,
+    frameBottom: Math.floor((cssH - bottomGap) * dpr),
     short: cssH < 360,
     controls: null,
   };

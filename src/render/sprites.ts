@@ -63,6 +63,7 @@ type Look = {
   hat: boolean;
   badge: boolean;
   small: boolean;
+  glasses?: boolean;
 };
 
 const adult: Look = {
@@ -87,13 +88,13 @@ function look(partial: Partial<Look>): Look {
 /** 膝盖不低于髋，手不甩到头后面。左右腿交替。 */
 const RUN: Rig[] = [
   rig(30, [24, 39], [22, 35], [9, 39], [11, 35], [13, 30], [26, 27]),
-  rig(31, [20, 39], [19, 36], [10, 34], [12, 31], [14, 29], [25, 28]),
-  rig(30, [22, 39], [21, 35], [18, 33], [16, 30], [12, 29], [26, 30]),
-  rig(30, [16, 39], [17, 34], [23, 36], [20, 32], [12, 28], [25, 31]),
+  rig(31, [20, 39], [19, 36], [10, 35], [11, 31], [14, 30], [25, 28]),
+  rig(30, [16, 39], [17, 35], [15, 33], [12, 30], [18, 30], [21, 29]),
+  rig(29, [11, 39], [13, 34], [21, 35], [18, 31], [23, 28], [16, 30]),
   rig(30, [9, 39], [11, 35], [24, 39], [22, 35], [26, 27], [13, 30]),
-  rig(31, [10, 34], [12, 31], [20, 39], [19, 36], [25, 28], [14, 29]),
-  rig(30, [18, 33], [16, 30], [22, 39], [21, 35], [26, 30], [12, 29]),
-  rig(30, [23, 36], [20, 32], [16, 39], [17, 34], [25, 31], [12, 28]),
+  rig(31, [10, 35], [11, 31], [20, 39], [19, 36], [25, 28], [14, 30]),
+  rig(30, [15, 33], [12, 30], [16, 39], [17, 35], [21, 29], [18, 30]),
+  rig(29, [21, 35], [18, 31], [11, 39], [13, 34], [16, 30], [23, 28]),
 ];
 
 const WALK: Rig[] = [
@@ -301,6 +302,12 @@ function paint(r: Rig, look: Look): Sprite {
   ctx.fillRect(hx - headR, hy - headR + 2, 3, 4);
   ctx.fillStyle = PAL.out;
   ctx.fillRect(hx + 2, hy - 1, 2, 2);
+  if (look.glasses) {
+    ctx.fillRect(hx, hy - 2, 6, 1);
+    ctx.fillRect(hx, hy - 2, 1, 4);
+    ctx.fillRect(hx + 5, hy - 2, 1, 4);
+    ctx.fillRect(hx + 1, hy + 1, 4, 1);
+  }
   if (look.mask) {
     ctx.fillStyle = "#E7EEF2";
     ctx.fillRect(hx, hy + 1, 5, 3);
@@ -321,7 +328,7 @@ function set(rigs: Rig[], look: Look) {
 
 export const PLAYER_PACK = "#4A515A";
 export const PLAYER_PACK_D = "#2C3138";
-const playerLook: Look = { ...adult, pack: PLAYER_PACK, packD: PLAYER_PACK_D };
+const playerLook: Look = { ...adult, pack: PLAYER_PACK, packD: PLAYER_PACK_D, glasses: true };
 const walkerLook = look({
   cloth: "#E07A3D",
   clothD: "#B85E28",
@@ -388,7 +395,7 @@ const playerJump = set(JUMP, playerLook);
 const playerLand = paint(LAND, playerLook);
 const playerDuck = set(DUCK, playerLook);
 const playerSit = set(SIT, playerLook);
-const bareLook: Look = { ...adult, pack: null };
+const bareLook: Look = { ...playerLook, pack: null };
 const playerSitBare = set(SIT, bareLook);
 const playerIdleBare = set(IDLE, bareLook);
 const playerDead = set(DEAD, playerLook);
@@ -532,10 +539,20 @@ const IDLE_SETS: Record<string, Sprite[]> = {
   staff: staffIdle,
 };
 
+// Cached alternate outfits: selected once from entity phase, never per frame.
+const ALTERNATE_LOOKS: Record<string, Look> = {
+  walker: { ...walkerLook, cloth: "#A26B78", clothD: "#79505D", pack: "#536C51", packD: "#3C503D" },
+  office: { ...officeLook, cloth: "#CFD4BF", clothD: "#A4AF9A", hair: "#51453B" },
+  luggage: { ...luggageLook, cloth: "#BB9262", clothD: "#977344" },
+  kid: { ...kidLook, cloth: "#E6E7DC", clothD: "#BDC9CC" },
+};
+const ALT_WALK = Object.fromEntries(Object.entries(ALTERNATE_LOOKS).map(([k, l]) => [k, set(k === "kid" ? kidWalk : WALK, l)]));
+const ALT_IDLE = Object.fromEntries(Object.entries(ALTERNATE_LOOKS).map(([k, l]) => [k, set(k === "kid" ? kidIdle : IDLE, l)]));
+
 const walkerSit = set(SIT, walkerLook);
 const officeSit = set(SIT, officeLook);
 
-export function actorFrame(kind: string, frame: number, mode: "walk" | "idle" | "run" | "sit" = "walk"): Sprite {
+export function actorFrame(kind: string, frame: number, mode: "walk" | "idle" | "run" | "sit" = "walk", variant = 0): Sprite {
   if (mode === "sit") {
     const frames = kind === "office" ? officeSit : walkerSit;
     return frames[((frame % frames.length) + frames.length) % frames.length]!;
@@ -545,7 +562,8 @@ export function actorFrame(kind: string, frame: number, mode: "walk" | "idle" | 
     return playerRun[i]!;
   }
   const bank = mode === "idle" ? IDLE_SETS : WALK_SETS;
-  const frames = bank[kind] ?? walkerWalk;
+  const alternate = mode === "idle" ? ALT_IDLE : ALT_WALK;
+  const frames = variant % 2 === 1 && alternate[kind] ? alternate[kind]! : bank[kind] ?? walkerWalk;
   const i = ((frame % frames.length) + frames.length) % frames.length;
   return frames[i]!;
 }

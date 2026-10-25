@@ -6,6 +6,8 @@ let lastNode = -1;
 let lastMode = "";
 let lastRailW = -1;
 let built = false;
+let sizeDirty = true;
+let lastPaint = "";
 
 function text(id: string, value: string) {
   const el = document.getElementById(id);
@@ -13,6 +15,7 @@ function text(id: string, value: string) {
 }
 
 export function bindRoute(rail: HTMLElement) {
+  new ResizeObserver(() => { sizeDirty = true; }).observe(rail);
   rail.addEventListener("pointerdown", (event) => {
     userLock = true;
     event.stopPropagation();
@@ -57,6 +60,9 @@ export function bindRoute(rail: HTMLElement) {
 }
 
 export function updateRoute(model: HudModel) {
+  const paintKey = `${model.mode}/${model.node}/${model.day}/${model.waters}/${Math.floor(model.score)}/${model.chips.map((c) => c.text).join("|")}/${model.banner?.join("|") ?? ""}`;
+  if (paintKey === lastPaint && !sizeDirty) return;
+  lastPaint = paintKey;
   const hud = document.getElementById("hud");
   const rail = document.getElementById("rail");
   const border = document.getElementById("border-row");
@@ -83,13 +89,15 @@ export function updateRoute(model: HudModel) {
     el.classList.toggle("now", i === current);
     el.classList.toggle("done", current >= 0 && i < current);
   });
-  const railW = Math.round(rail.clientWidth);
+  const railW = sizeDirty ? Math.round(rail.clientWidth) : lastRailW;
+  sizeDirty = false;
   const widthChanged = railW !== lastRailW;
   if (widthChanged) {
     userLock = false;
     lastRailW = railW;
   }
-  if (model.node !== lastNode || model.mode !== lastMode || widthChanged) {
+  const routeDirty = model.node !== lastNode || model.mode !== lastMode || widthChanged;
+  if (routeDirty) {
     if (model.node !== lastNode || model.mode !== lastMode) userLock = false;
     lastNode = model.node;
     lastMode = model.mode;
@@ -106,7 +114,7 @@ export function updateRoute(model: HudModel) {
     if (model.mode !== "train") rail.scrollLeft = 0;
     paintMap(model);
   }
-  fitRail(rail);
+  if (routeDirty) fitRail(rail);
 
   const lines = [model.chips.slice(0, 2), model.chips.slice(2, 4)]
     .map((row) => row.map((c) => c.text).join("  ·  "))

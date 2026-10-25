@@ -1,7 +1,8 @@
 import { BORDER, STATIONS, type Place, type Station } from "../data/copy";
+import { BORDER_LENGTHS, RAIL_LENGTH } from "../data/route";
 
 /** 世界单位是"美术像素"。一天 = 口岸四段 + 东铁线 14 站，之后循环到下一天。 */
-export const STATION_LEN = 1300;
+export const STATION_LEN = RAIL_LENGTH;
 
 export type StageId = "hall" | "gates" | "bridge" | "platform" | "train";
 
@@ -26,10 +27,10 @@ type Weight = [Kind, number];
 export type Segment = { id: StageId; start: number; end: number; pool: Weight[] };
 
 const BORDER_SPECS: Record<Exclude<StageId, "train">, { len: number; pool: Weight[] }> = {
-  hall: { len: 1200, pool: [["walker", 5], ["office", 3], ["kid", 3]] },
-  gates: { len: 1000, pool: [["gate", 5], ["walker", 3], ["queue", 2]] },
-  bridge: { len: 1560, pool: [["walker", 3], ["office", 2], ["luggage", 2], ["kid", 2], ["sign", 3]] },
-  platform: { len: 820, pool: [["queue", 3], ["walker", 3], ["elder", 2]] },
+  hall: { len: BORDER_LENGTHS.hall, pool: [["walker", 5], ["office", 3], ["kid", 3]] },
+  gates: { len: BORDER_LENGTHS.gates, pool: [["gate", 5], ["walker", 3], ["queue", 2]] },
+  bridge: { len: BORDER_LENGTHS.bridge, pool: [["walker", 3], ["office", 2], ["luggage", 2], ["kid", 2], ["sign", 3]] },
+  platform: { len: BORDER_LENGTHS.platform, pool: [["queue", 3], ["walker", 3], ["elder", 2]] },
 };
 
 const TRAIN_POOL: Weight[] = [
@@ -104,16 +105,26 @@ export function legacyProgress(station: string, day: number) {
   return base;
 }
 
-export function travelatorRange(): [number, number] {
-  const bridge = SEGMENTS.find((s) => s.id === "bridge")!;
-  const span = bridge.end - bridge.start;
-  return [bridge.start + span * 0.3, bridge.start + span * 0.62];
+const bridgeStart = SEGMENTS.find((s) => s.id === "bridge")!.start;
+const WALKWAYS: readonly (readonly [number, number])[] = [[360, 1008], [1368, 2016], [2376, 3024]]
+  .map(([a, b]) => [bridgeStart + a!, bridgeStart + b!] as const);
+
+export function travelatorRanges() { return WALKWAYS; }
+
+/** Smooth spatial ramp, identical for rendering and rules, no accumulating multiplier. */
+export function travelatorBoost(x: number) {
+  const l = local(x);
+  for (const [a, b] of WALKWAYS) {
+    if (l < a || l >= b) continue;
+    const t = Math.min(1, (l - a) / 36, (b - l) / 36);
+    return t * t * (3 - 2 * t);
+  }
+  return 0;
 }
 
 export function onTravelator(x: number) {
-  const [a, b] = travelatorRange();
   const l = local(x);
-  return l >= a && l < b;
+  return WALKWAYS.some(([a, b]) => l >= a && l < b);
 }
 
 export function boundaryX() {
@@ -132,7 +143,7 @@ export function inFirstClass(x: number) {
 /** 两道自助闸机前后不生成障碍，人可以从打开的门走过去。 */
 export function inSafeJoin(x: number) {
   const l = local(x);
-  const joins = [SEGMENTS[0]!.end, SEGMENTS[2]!.end];
+  const joins = SEGMENTS.slice(0, 4).map((seg) => seg.end);
   return joins.some((door) => l > door - 110 && l < door + 48);
 }
 

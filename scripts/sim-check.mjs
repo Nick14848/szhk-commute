@@ -76,8 +76,8 @@ for (const [n, name] of [
   [299, "通勤小白"],
   [300, "渐入佳境"],
   [699, "渐入佳境"],
-  [700, "深港双城卷王"],
-  [1199, "深港双城卷王"],
+  [700, "深港通勤"],
+  [1199, "深港通勤"],
   [1200, "大水教父"],
   [2199, "大水教父"],
   [2200, "薄肌教父"],
@@ -113,6 +113,10 @@ check("390x844 full world", stageFits(390, 844, 2, true));
 check("844x390 full world", stageFits(844, 390, 2, true));
 check("1280x720 full world", stageFits(1280, 720, 2, false));
 check("320x568 full world", stageFits(320, 568, 2, true));
+for (const [width,dpr] of [[375,2],[390,3],[430,3]]) {
+  const v=view.computeView(width,844,dpr,0,0,true);
+  check(`portrait uses screen ${width}/${dpr}`, v.W*v.pd/dpr > width*.94);
+}
 
 function stageCssWidth(cssW) {
   const v = view.computeView(cssW, 900, 1, 0, 0, true, 0);
@@ -179,6 +183,35 @@ check(
 const phone = mod.speedAt(400, 3);
 const desktop = mod.speedAt(400, 3);
 check("same world position gives the same speed", phone === desktop, `${phone} ${desktop}`);
+
+check("new route geometry", stages.TRAIN_START === 7600 && stages.DAY_LEN === 25800);
+const walkways = stages.travelatorRanges();
+check("three separate belts", walkways.length === 3 && walkways.every(([a,b], i) => b > a && (i === 0 || a > walkways[i-1][1] + 200)));
+for (const [i, [start, end]] of walkways.entries()) {
+  check(`belt ${i} boundaries`, !stages.onTravelator(start - .01) && stages.onTravelator(start) && !stages.onTravelator(end));
+  check(`belt ${i} smooth entrance`, stages.travelatorBoost(start) === 0 && stages.travelatorBoost(start + 18) === .5);
+  check(`belt ${i} middle`, stages.travelatorBoost(start + 100) === 1);
+  check(`belt ${i} next day`, stages.onTravelator(start + 100 + stages.DAY_LEN));
+  check(`belt ${i} smooth exit`, stages.travelatorBoost(end - .01) < .00001);
+}
+for (let station = 1; station < 14; station++) {
+  const at = stages.TRAIN_START + station * stages.STATION_LEN;
+  check(`continuous station ${station}`, Math.abs(mod.speedAt(at, 1000) - mod.speedAt(at - .01, 1000)) < .001);
+}
+check("late speed", mod.speedAt(stages.DAY_LEN - 1, 1000) > 111 && mod.speedAt(stages.DAY_LEN - 1, 1000) <= 112);
+check("day wrap does not reset speed", Math.abs(mod.speedAt(stages.DAY_LEN, 1000) - mod.speedAt(stages.DAY_LEN - .01, 1000)) < 4);
+check("speed cap", mod.speedAt(stages.DAY_LEN * 100 + walkways[0][0] + 100, 100000) <= 140);
+for (const [oldProgress, expected] of [[600,750],[1700,2200],[2980,4700],[4170,7050],[4580+9*1300+400,7600+9*1300+400],[22780+600,25800+750]]) {
+  const migrated = readTen({v:2,bestScore:1660,bestStation:"九龙塘",bestDay:1,bestProgress:oldProgress});
+  check(`v2 migrate ${oldProgress}`, migrated.v === 3 && Math.abs(migrated.bestProgress - expected) < .0001, JSON.stringify(migrated));
+  copy.writeSave(migrated);
+  copy.clearSessionRecord();
+  const next = copy.loadSave();
+  check(`v3 idempotent ${oldProgress}`, next.bestProgress === migrated.bestProgress && next.bestScore === 1660);
+}
+for (const [w,h] of [[320,568],[375,667],[390,844],[430,932],[844,390],[1440,900]]) {
+  for (const dpr of [1,2,3]) check(`full frame ${w}/${h}/${dpr}`, stageFits(w,h,dpr,w<900));
+}
 
 if (fails.length) {
   console.error(fails.join("\n"));

@@ -30,6 +30,7 @@ const game = new Game(canvas);
 game.audio.muted = loadMuted();
 
 const held = new Map<number, "duck" | "jump">();
+let keyboardDuck = false;
 
 function syncChrome() {
   const state = game.uiState();
@@ -51,7 +52,9 @@ game.onState = () => {
   const state = game.uiState();
   if (state.paused || state.phase === "dead" || state.phase === "over") {
     held.clear();
+    keyboardDuck = false;
     game.clearInputs();
+    syncHeld();
   }
   syncChrome();
 };
@@ -68,14 +71,23 @@ const sound = {
 game.onMuteKey = sound.toggle;
 
 function play() {
+  held.clear();
+  keyboardDuck = false;
+  syncHeld();
   game.start();
 }
 
 function syncHeld() {
-  let duck = false;
+  let duck = keyboardDuck;
   for (const kind of held.values()) if (kind === "duck") duck = true;
   game.setPadDuck(duck);
+  duckBtn.classList.toggle("is-pressed", duck);
+  duckBtn.setAttribute("aria-pressed", String(duck));
+  jumpBtn.classList.toggle("is-pressed", [...held.values()].includes("jump"));
 }
+
+// Scope native callout/selection suppression to the game controls, not menu links.
+for (const type of ["contextmenu", "selectstart"]) pad.addEventListener(type, (event) => event.preventDefault());
 
 function watchPointer(button: HTMLButtonElement, kind: "duck" | "jump") {
   button.addEventListener("pointerdown", (event) => {
@@ -104,10 +116,11 @@ duckBtn.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;
   event.preventDefault();
   event.stopPropagation();
-  game.setPadDuck(true);
+  keyboardDuck = true;
+  syncHeld();
 });
 duckBtn.addEventListener("keyup", (event) => {
-  if (event.key === "Enter" || event.key === " ") game.setPadDuck(false);
+  if (event.key === "Enter" || event.key === " ") { keyboardDuck = false; syncHeld(); }
 });
 jumpBtn.addEventListener("keydown", (event) => {
   if (event.repeat) return;
@@ -136,10 +149,18 @@ document.querySelectorAll<HTMLAnchorElement>("#credit a").forEach((link) => {
 });
 
 const onHide = () => {
-  if (document.hidden) game.pause();
+  if (document.hidden) {
+    held.clear();
+    keyboardDuck = false;
+    syncHeld();
+    game.clearInputs();
+    game.pause();
+  }
 };
 const onBlur = () => {
   held.clear();
+  keyboardDuck = false;
+  syncHeld();
   game.clearInputs();
   game.pause();
 };
@@ -157,7 +178,15 @@ const audio = {
   alarm: () => game.audio.alarm(),
 };
 const shot = debug ? params.get("shot") : null;
-if (shot === "result") showResult(overlay, sampleResult(), play);
+if (shot === "result") {
+  const result = sampleResult();
+  const score = Number(params.get("score"));
+  if (params.has("score") && Number.isFinite(score) && score >= 0) {
+    result.score = Math.floor(score);
+    result.best = Math.max(result.best, result.score);
+  }
+  showResult(overlay, result, play);
+}
 else if (shot) game.loadShot(shot);
 else if (debug && (params.has("auto") || params.has("smoke") || params.has("atlas"))) {
   /* 开发入口直接进游戏，不先盖一层首页 */
