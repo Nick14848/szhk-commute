@@ -298,15 +298,38 @@ function paint(r: Rig, look: Look): Sprite {
   blob(ctx, hx, hy, PAL.out, headR);
   blob(ctx, hx, hy, PAL.skin, headR - 1);
   ctx.fillStyle = look.hair;
-  ctx.fillRect(hx - headR + 1, hy - headR, headR * 2 - 1, 3);
-  ctx.fillRect(hx - headR, hy - headR + 2, 3, 4);
-  ctx.fillStyle = PAL.out;
-  ctx.fillRect(hx + 2, hy - 1, 2, 2);
   if (look.glasses) {
-    ctx.fillRect(hx, hy - 2, 6, 1);
-    ctx.fillRect(hx, hy - 2, 1, 4);
-    ctx.fillRect(hx + 5, hy - 2, 1, 4);
-    ctx.fillRect(hx + 1, hy + 1, 4, 1);
+    // 阶梯状发梢，保留额头与耳侧的肤色，不再像一整块方帽。
+    ctx.fillRect(hx - 3, hy - 6, 7, 1);
+    ctx.fillRect(hx - 5, hy - 5, 10, 2);
+    ctx.fillRect(hx - 6, hy - 3, 3, 4);
+    ctx.fillRect(hx - 3, hy - 3, 4, 1);
+    ctx.fillRect(hx + 2, hy - 3, 2, 1);
+  } else {
+    ctx.fillRect(hx - headR + 1, hy - headR, headR * 2 - 1, 3);
+    ctx.fillRect(hx - headR, hy - headR + 2, 3, 4);
+  }
+  if (look.glasses) {
+    // 两个独立镜片和鼻梁；固定在头部局部坐标，所有动作共用。
+    // 暖色镜片避免一个大黑框把整张脸吃掉，近侧镜片稍宽形成 3/4 侧面。
+    ctx.fillStyle = "#36404A";
+    ctx.fillRect(hx - 4, hy - 1, 3, 1);
+    ctx.fillRect(hx - 2, hy - 2, 3, 4);
+    ctx.fillRect(hx + 2, hy - 2, 4, 4);
+    ctx.fillRect(hx + 1, hy - 1, 1, 1);
+    ctx.fillStyle = "#F8E6D0";
+    ctx.fillRect(hx - 1, hy - 1, 1, 2);
+    ctx.fillRect(hx + 3, hy - 1, 2, 2);
+    ctx.fillStyle = PAL.out;
+    ctx.fillRect(hx - 1, hy, 1, 1);
+    ctx.fillRect(hx + 4, hy, 1, 1);
+    ctx.fillStyle = PAL.skinD;
+    ctx.fillRect(hx + 2, hy + 3, 2, 1);
+    ctx.fillStyle = "#B97F68";
+    ctx.fillRect(hx + 3, hy + 4, 1, 1);
+  } else {
+    ctx.fillStyle = PAL.out;
+    ctx.fillRect(hx + 2, hy - 1, 2, 2);
   }
   if (look.mask) {
     ctx.fillStyle = "#E7EEF2";

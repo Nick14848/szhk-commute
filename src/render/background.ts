@@ -244,35 +244,15 @@ function drawStage(id: StageId, s: Scene) {
 function stageDetails(id: Exclude<StageId, "train">, s: Scene) {
   const {ctx, v, cam, base} = s;
   const seg = SEGMENTS.find((seg) => seg.id === id)!;
-  const emergencyAt = {hall:1070, gates:1060, bridge:2180, platform:480}[id];
-  const ex = Math.round(base + seg.start + emergencyAt - cam);
-  if (ex > -70 && ex < v.W + 70) exitSign(ctx, ex, v.G - 76);
-  if (id === "hall" || id === "bridge") {
-    const at = id === "hall" ? 660 : 1280;
-    const ax = Math.round(base + seg.start + at - cam);
+  // A single quiet placement along the entire bridge, never in the checkpoint.
+  if (id === "bridge") {
+    const ax = Math.round(base + seg.start + 1280 - cam);
     if (ax > -70 && ax < v.W + 70) adPoster(ctx, ax, v.G - 121);
   }
   if (id === "gates") {
-    for (const at of [540, 1120]) {
-      const x = Math.round(base + seg.start + at - cam);
-      if (x > -140 && x < v.W + 140) securityScanner(ctx, x, v.G - 22, s.time, s.reduced);
-    }
+    const x = Math.round(base + seg.start + 540 - cam);
+    if (x > -140 && x < v.W + 140) securityScanner(ctx, x, v.G, s.time, s.reduced);
   }
-}
-
-function exitSign(ctx: Ctx, x: number, y: number) {
-  ctx.fillStyle = "#D2DCD3"; ctx.fillRect(x - 1, y - 1, 58, 17);
-  ctx.fillStyle = "#287253"; ctx.fillRect(x, y, 56, 15);
-  ctx.fillStyle = "#F4F8EB";
-  ctx.fillRect(x + 4, y + 3, 7, 9);
-  ctx.fillStyle = "#287253"; ctx.fillRect(x + 5, y + 4, 5, 8);
-  ctx.fillStyle = "#F4F8EB";
-  ctx.fillRect(x + 10, y + 4, 2, 2); ctx.fillRect(x + 9, y + 7, 4, 2);
-  ctx.fillRect(x + 8, y + 9, 2, 3); ctx.fillRect(x + 12, y + 9, 2, 2);
-  ctx.fillRect(x + 16, y + 7, 7, 2);
-  ctx.beginPath(); ctx.moveTo(x + 24, y + 8); ctx.lineTo(x + 20, y + 4); ctx.lineTo(x + 20, y + 12); ctx.closePath(); ctx.fill();
-  ctx.font = `700 6px ${fontTC}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-  ctx.fillText("紧急出口", x + 27, y + 7.5);
 }
 
 function adPoster(ctx: Ctx, x: number, y: number) {
@@ -286,13 +266,19 @@ function adPoster(ctx: Ctx, x: number, y: number) {
 }
 
 function securityScanner(ctx: Ctx, x: number, floor: number, time: number, reduced: boolean) {
-  // Large, muted background equipment: separate depth plane, never a hitbox.
+  // Large, muted background equipment, never a hitbox. Its support feet and
+  // shared mounting slab reach the actual floor instead of ending in mid-air.
+  ctx.fillStyle = "#B3BEC2"; ctx.fillRect(x - 18, floor - 2, 146, 2);
+  ctx.fillStyle = "#C6CFD0"; ctx.fillRect(x - 16, floor - 3, 142, 1);
   ctx.fillStyle = "#8C9EA7"; ctx.fillRect(x - 14, floor - 13, 103, 8);
   ctx.fillStyle = "#3C505C"; ctx.fillRect(x - 12, floor - 13, 99, 3);
   const shift = reduced ? 0 : Math.floor(time * 8) % 4;
   ctx.fillStyle = "#819298";
   for (let roller = x - 10 + shift; roller < x + 85; roller += 4) ctx.fillRect(roller, floor - 12, 1, 2);
-  for (const leg of [-8, 77]) ctx.fillRect(x + leg, floor - 5, 4, 5);
+  for (const leg of [-8, 77]) {
+    ctx.fillRect(x + leg, floor - 5, 4, 4);
+    ctx.fillRect(x + leg - 2, floor - 2, 8, 2);
+  }
   ctx.fillStyle = "#BAC7CD"; ctx.fillRect(x + 8, floor - 61, 49, 49);
   ctx.fillStyle = "#E2E7E6"; ctx.fillRect(x + 11, floor - 58, 43, 43);
   ctx.fillStyle = "#253D4D"; ctx.fillRect(x + 10, floor - 29, 42, 16);
@@ -608,7 +594,10 @@ function platform(s: Scene) {
     ctx.fillRect(x + 72, v.G - 56, 36, 56);
   });
   tile(cam * 0.6, 260, v.W, (x) => {
-    sign(s, x, Math.max(v.T + 16, v.G - 84), SIGNS.toAdmiralty, SIGNS.toAdmiraltyEn, true);
+    // The 20-unit bilingual board ends fourteen units above the train roof.
+    // Previously it was anchored to the floor and overlapped the door glazing.
+    const boardY = Math.max(v.T + 16, trainTop - 34);
+    sign(s, x, boardY, SIGNS.toAdmiralty, SIGNS.toAdmiraltyEn, true);
   });
   ctx.fillStyle = tokens.yellow;
   ctx.fillRect(0, v.G + 2, v.W, 2);
@@ -673,94 +662,91 @@ function train(s: Scene) {
   ctx.fillRect(0, bottom, v.W, 3);
 
   const origin = base + TRAIN_START;
-  const module = 220;
-  // Quiet formed ceiling panels and ventilation, no repeated route display.
-  tile(cam, module, v.W, (x) => {
-    ctx.fillStyle = "#D5DDD9";
-    ctx.fillRect(x + 8, v.T + 20, 1, Math.max(0, top - v.T - 42));
-    ctx.fillRect(x + 160, v.T + 20, 1, Math.max(0, top - v.T - 42));
-    ctx.fillStyle = "#CAD3D1";
-    const ventY = Math.max(v.T + 23, top - 29);
-    ctx.fillRect(x + 28, ventY, 112, 5);
-    ctx.fillStyle = "#8D9E9F";
-    for (let i = 0; i < 26; i++) ctx.fillRect(x + 31 + i * 4, ventY + 1, 1, 3);
-  });
+  // A full six-seat bay plus a generous double-door bay. All fittings use this
+  // same origin, so ceiling seams, windows and doors cannot drift out of align.
+  const module = 320;
   const firstMod = Math.floor((cam - 30 - origin) / module) - 1;
-  for (let m = firstMod; m < firstMod + 6; m++) {
+  const lastMod = Math.ceil((cam + v.W - origin) / module);
+  for (let m = firstMod; m <= lastMod; m++) {
     const wx = origin + m * module;
     const x = Math.round(wx - cam);
-    if (x > v.W + module) break;
+    ctx.fillStyle = "#D5DDD9";
+    for (const dx of [12, 220]) ctx.fillRect(x + dx, v.T + 20, 1, Math.max(0, top - v.T - 42));
+    ctx.fillStyle = "#CAD3D1";
+    const ventY = Math.max(v.T + 16, top - 28);
+    ctx.fillRect(x + 48, ventY, 136, 4);
+    ctx.fillStyle = "#8D9E9F";
+    for (let i = 0; i < 32; i++) ctx.fillRect(x + 52 + i * 4, ventY + 1, 1, 2);
+
     ctx.fillStyle = "#C5CED6";
     ctx.fillRect(x, farFloor, module, v.G - farFloor);
     ctx.fillStyle = "#B7C0C8";
     ctx.fillRect(x, farFloor, module, 3);
-    const sx = x + 12;
+    // Off-white wall piers separate two broad windows from the doorway. The
+    // glazing remains above the bench rather than continuing through the door.
+    ctx.fillStyle = "#E6EAE5";
+    ctx.fillRect(x, top - 3, 14, farFloor - top + 3);
+    ctx.fillRect(x + 218, top - 3, 102, farFloor - top + 3);
+    ctx.fillStyle = "#9AA9AD";
+    for (const dx of [14, 115, 216]) ctx.fillRect(x + dx, top, 2, winH);
+    ctx.fillStyle = "#D9E2DF";
+    for (const dx of [16, 117]) ctx.fillRect(x + dx, top + 1, 1, winH - 2);
+    ctx.fillStyle = "#9AA9AD";
+    ctx.fillRect(x + 14, bottom + 3, 204, 1);
+    ctx.fillStyle = "#CAD3CE";
+    ctx.fillRect(x + 222, top + 1, 1, farFloor - top - 2);
+
+    const sx = x + 20;
+    const benchWidth = 192;
     const cushion = farFloor - 9;
     const backTop = bottom + 7;
     // One continuous six-person metal bench: shared back, seat and supports.
     ctx.fillStyle = "#87969F";
-    ctx.fillRect(sx, backTop, 144, cushion - backTop + 7);
+    ctx.fillRect(sx, backTop, benchWidth, cushion - backTop + 7);
     ctx.fillStyle = "#D5DFE2";
-    ctx.fillRect(sx + 1, backTop + 1, 142, cushion - backTop);
+    ctx.fillRect(sx + 1, backTop + 1, benchWidth - 2, cushion - backTop);
     ctx.fillStyle = "#BBC8CE";
-    ctx.fillRect(sx + 1, cushion, 142, 5);
+    ctx.fillRect(sx + 1, cushion, benchWidth - 2, 5);
     ctx.fillStyle = "#E8EEF0";
-    ctx.fillRect(sx + 1, cushion, 142, 1);
+    ctx.fillRect(sx + 1, cushion, benchWidth - 2, 1);
     ctx.fillStyle = "#7E929C";
-    for (let i = 1; i < 6; i++) ctx.fillRect(sx + i * 24, backTop + 3, 1, cushion - backTop + 2);
-    for (const foot of [18, 118]) {
+    for (let i = 1; i < 6; i++) ctx.fillRect(sx + i * 32, backTop + 3, 1, cushion - backTop + 2);
+    for (const foot of [24, 92, 164]) {
       ctx.fillRect(sx + foot, cushion + 6, 4, farFloor - cushion - 6);
       ctx.fillRect(sx + foot - 3, farFloor - 2, 10, 2);
     }
-    for (const end of [0, 142]) ctx.fillRect(sx + end, cushion - 5, 2, 11);
-    // Windows, door bay, pole and handles share the same 220-unit module.
-    ctx.fillStyle = "#E4EAE7";
-    ctx.fillRect(x, top - 3, 9, winH + 6);
-    ctx.fillRect(x + 162, top - 3, 58, farFloor - top + 3);
-    ctx.fillStyle = "#8798A1";
-    ctx.fillRect(x + 171, top - 3, 42, farFloor - top + 3);
-    ctx.fillStyle = "#D6E0DF";
-    ctx.fillRect(x + 173, top - 1, 38, farFloor - top - 1);
-    for (const win of [177, 196]) {
-      ctx.fillStyle = "#263D49";
-      ctx.fillRect(x + win + 2, top + 5, 7, 28);
-      ctx.fillRect(x + win, top + 7, 11, 24);
-      ctx.fillStyle = "#9DB7BE";
-      ctx.fillRect(x + win + 2, top + 8, 7, 21);
-      ctx.fillRect(x + win + 1, top + 10, 9, 17);
-      ctx.fillStyle = "#D0DFDF";
-      ctx.fillRect(x + win + 3, top + 10, 1, 14);
-    }
-    for (const edge of [170, 212]) {
-      ctx.fillStyle = "#DBBD50"; ctx.fillRect(x + edge, top + 1, 2, farFloor - top - 1);
-      ctx.fillStyle = "#3E4B4C";
-      for (let stripe = top + 1; stripe < farFloor - 3; stripe += 7) ctx.fillRect(x + edge, stripe, 2, 3);
-    }
-    ctx.fillStyle = "#D7C565"; ctx.fillRect(x + 175, top - 2, 34, 5);
-    ctx.fillStyle = "#63684D"; ctx.fillRect(x + 180, top, 24, 1);
-    ctx.fillStyle = "#72858F";
-    ctx.fillRect(x + 191, top, 1, farFloor - top);
-    const pole = x + 164;
+    for (const end of [0, benchWidth - 2]) ctx.fillRect(sx + end, cushion - 5, 2, 11);
+    trainDoor(ctx, x + 242, top, farFloor);
+
+    // A small flush service panel adds wall structure, not another ad/screen.
+    ctx.fillStyle = "#B7C3C3";
+    ctx.fillRect(x + 310, top + 40, 7, 18);
+    ctx.fillStyle = "#DEE5DF";
+    ctx.fillRect(x + 311, top + 41, 5, 16);
+    ctx.fillStyle = "#8A9C9E";
+    ctx.fillRect(x + 313, top + 49, 1, 2);
+
+    const pole = x + 229;
     ctx.fillStyle = "#9C9F7B";
     ctx.fillRect(pole, v.T + 13, 3, farFloor - v.T - 13);
     ctx.fillStyle = "#F1D967";
     ctx.fillRect(pole, top - 2, 3, farFloor - top);
     ctx.fillStyle = "#FFF0A5";
     ctx.fillRect(pole, top, 1, farFloor - top - 3);
-    for (const dx of [24, 62, 100, 138]) {
-      ctx.fillStyle = "#8E979E";
+    for (const dx of [26, 62, 98, 134, 170, 206]) {
+      ctx.fillStyle = "#9AA8AD";
       ctx.fillRect(x + dx + 6, top - 14, 2, 5);
       hollowRing(ctx, x + dx, top - 10);
     }
+
   }
 
-  ctx.fillStyle = tokens.line;
+  ctx.fillStyle = "#9AA8AD";
   ctx.fillRect(0, top - 14, v.W, 2);
   ctx.fillStyle = "#CAD4D6";
   ctx.fillRect(0, v.T + 8, v.W, 5);
   ctx.fillStyle = "#F9FCF6";
-  tile(cam, module, v.W, (x) => ctx.fillRect(x + 26, v.T + 9, 112, 2));
-
+  tile(cam - origin, module, v.W, (x) => ctx.fillRect(x + 42, v.T + 9, 144, 2));
 
   ctx.fillStyle = "#D7DCE1";
   ctx.fillRect(0, v.G + 10, v.W, 8);
@@ -768,16 +754,59 @@ function train(s: Scene) {
   ctx.fillRect(0, v.G + 10, v.W, 3);
 }
 
+/** Pixel-rounded double doors: broad leafs, dark glazing and restrained edging. */
+function trainDoor(ctx: Ctx, x: number, top: number, floor: number) {
+  const height = floor - top;
+  ctx.fillStyle = "#85969E";
+  ctx.fillRect(x, top - 3, 64, height + 3);
+  ctx.fillStyle = "#D8E1DD";
+  ctx.fillRect(x + 2, top - 1, 60, height - 1);
+  ctx.fillStyle = "#EEF2EA";
+  ctx.fillRect(x + 3, top, 1, height - 2);
+  ctx.fillRect(x + 60, top, 1, height - 2);
+  for (const leaf of [6, 36]) {
+    ctx.fillStyle = "#293D47";
+    ctx.fillRect(x + leaf + 2, top + 5, 16, 30);
+    ctx.fillRect(x + leaf, top + 7, 20, 26);
+    ctx.fillStyle = "#98B1B8";
+    ctx.fillRect(x + leaf + 3, top + 8, 14, 24);
+    ctx.fillRect(x + leaf + 2, top + 10, 16, 20);
+    ctx.fillStyle = "#C6D7D6";
+    ctx.fillRect(x + leaf + 5, top + 10, 1, 18);
+    ctx.fillRect(x + leaf + 6, top + 10, 5, 1);
+    ctx.fillStyle = "#BDC9C7";
+    ctx.fillRect(x + leaf - 1, top + 42, 23, Math.max(1, height - 46));
+    ctx.fillStyle = "#D2DCDA";
+    ctx.fillRect(x + leaf, top + 43, 21, Math.max(1, height - 48));
+  }
+  ctx.fillStyle = "#748890";
+  ctx.fillRect(x + 31, top, 1, height);
+  for (const grip of [28, 35]) ctx.fillRect(x + grip, top + 44, 1, 12);
+  ctx.fillStyle = "#D8BF5D";
+  for (const edge of [-1, 64]) ctx.fillRect(x + edge, top + 1, 1, height - 2);
+  ctx.fillStyle = "#B8C4C1";
+  ctx.fillRect(x + 2, top - 8, 60, 4);
+  ctx.fillStyle = "#5D7177";
+  ctx.fillRect(x + 22, top - 7, 20, 2);
+  ctx.fillStyle = "#AFC5B3";
+  ctx.fillRect(x + 30, top - 7, 4, 2);
+  ctx.fillStyle = "#71858E";
+  ctx.fillRect(x, floor - 2, 64, 2);
+}
+
 function hollowRing(ctx: Ctx, x: number, y: number) {
   ctx.fillStyle = "#8E979E";
   ctx.fillRect(x + 6, y, 2, 3);
-  ctx.fillStyle = tokens.line;
+  ctx.fillStyle = "#4F7894";
   ctx.fillRect(x + 5, y + 3, 4, 2);
   ctx.fillRect(x + 3, y + 5, 2, 2);
   ctx.fillRect(x + 9, y + 5, 2, 2);
   ctx.fillRect(x + 1, y + 7, 2, 3);
   ctx.fillRect(x + 11, y + 7, 2, 3);
   ctx.fillRect(x + 3, y + 9, 8, 2);
+  ctx.fillStyle = "#87AEC2";
+  ctx.fillRect(x + 3, y + 7, 1, 2);
+  ctx.fillRect(x + 4, y + 9, 5, 1);
 }
 
 function window(

@@ -6,6 +6,8 @@ import {
   PLAYER_VIEW_X,
   PREP_SECONDS,
   PREP_SECONDS_REDUCED,
+  PERMIT_MIN_GAP,
+  PERMITS_PER_DAY,
   RAMP_SECONDS,
   SAFE_AFTER_DOOR,
   SEAT_LOSE_SEC,
@@ -134,6 +136,9 @@ export class Game {
   private entities: Entity[] = [];
   private floaters: Floater[] = [];
   private nextSpawn = 0;
+  private lastPermitX = -Infinity;
+  private permitDay = 0;
+  private permitSpawns = 0;
   private locKey = "";
   private banner: [string, string] | null = null;
   private bannerUntil = 0;
@@ -321,7 +326,7 @@ export class Game {
       gates: SEGMENTS[1]!.start + 80,
       security: SEGMENTS[1]!.start + 480,
       manual: 852,
-      advert: 640,
+      advert: SEGMENTS[2]!.start + 1200,
       caution: 900,
       exit: SEGMENTS[0]!.end - 110,
       bridge: SEGMENTS[2]!.start + 180,
@@ -408,6 +413,9 @@ export class Game {
     this.entities = [];
     this.floaters = [];
     this.nextSpawn = this.distance + SPEED_EASE * FIRST_LOOKAHEAD;
+    this.lastPermitX = -Infinity;
+    this.permitDay = 0;
+    this.permitSpawns = 0;
     this.locKey = "";
     this.lastSeg = "";
     this.board = null;
@@ -869,21 +877,18 @@ export class Game {
         this.nextSpawn = x + 80;
         continue;
       }
-      if (segmentAt(x).id === "train") {
-        /* 低牌不进车厢 */
-      }
       const speedThere = Math.max(SPEED_EASE, speedAt(x, Math.max(this.runTime, 0.2)));
       const allowDouble = this.canDouble();
       const early = this.runTime < RAMP_SECONDS;
       const progress = progressOf(x);
-      if (!early && allowDouble && progress > 0.18 && this.rng() < 0.08 + progress * 0.16) {
-        const count = progress > 0.42 && kidFileClear(3, speedThere) && this.rng() < 0.6 ? 3 : 2;
+      if (!early && allowDouble && progress > 0.18 && this.rng() < 0.14 + progress * 0.22) {
+        const count = progress > 0.27 && kidFileClear(3, speedThere) && this.rng() < 0.58 + progress * 0.24 ? 3 : 2;
         if (kidFileClear(count, speedThere) && !inSafeJoin(x + 24)) {
           const step = 11;
           const phase = this.rng();
           for (let i = 0; i < count; i++) this.entities.push(this.make("kid", x + i * step, 0, phase + i * 0.17));
           const covered = (count - 1) * step + spanOf("kid");
-          this.nextSpawn = x + speedThere * (gapSeconds(progress, this.rng()) + 0.35) + covered;
+          this.nextSpawn = x + speedThere * (gapSeconds(progress, this.rng()) + 0.4) + covered;
           continue;
         }
       }
@@ -904,7 +909,7 @@ export class Game {
       if (r < 0.48 - progress * 0.12) {
         this.entities.push(this.make("water", mid, this.rng() < 0.45 ? 28 : 0, this.rng()));
       } else if (r < 0.6) {
-        const special = this.specialFor(x);
+        const special = this.specialFor(mid);
         this.entities.push(this.make(special, mid, special === "concession" ? 0 : 18, 0));
       }
       this.nextSpawn = x + gap;
@@ -921,8 +926,20 @@ export class Game {
   private specialFor(x: number): Kind {
     const id = segmentAt(x).id;
     if (id === "hall") return this.rng() < 0.6 ? "concession" : "octopus";
-    if (id === "gates") return "permit";
-    if (id === "train") return this.rng() < 0.5 ? "permit" : "octopus";
+    if (id === "gates" || id === "train") {
+      const day = dayOf(x);
+      if (this.permitDay !== day) {
+        this.permitDay = day;
+        this.permitSpawns = 0;
+      }
+      // A four-second shield is an occasional relief, not a chain of free runs.
+      // The spatial cooldown survives day changes and counts uncollected cards too.
+      if (this.permitSpawns < PERMITS_PER_DAY && x - this.lastPermitX >= PERMIT_MIN_GAP && this.rng() < (id === "gates" ? 0.18 : 0.12)) {
+        this.lastPermitX = x;
+        this.permitSpawns++;
+        return "permit";
+      }
+    }
     return "octopus";
   }
 

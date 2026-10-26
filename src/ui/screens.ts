@@ -1,4 +1,4 @@
-import { titleFor } from "../data/copy";
+import { TITLES, titleFor } from "../data/copy";
 import type { RunResult } from "../game/engine";
 import { showBedroom } from "../render/bedroom";
 
@@ -30,6 +30,15 @@ export function showResult(overlay: HTMLElement, r: RunResult, onAgain: () => vo
     overlay.replaceChildren();
     onAgain();
   });
+  const bands = h("ul", "score-bands");
+  bands.setAttribute("aria-label", "分数与成就对照");
+  TITLES.forEach((tier, i) => {
+    const range = TITLES[i + 1] ? `${tier.min}–${TITLES[i + 1]!.min - 1} 分` : `${tier.min}+ 分`;
+    const item = h("li", tier.min === achievement.min ? "is-current" : "");
+    if (tier.min === achievement.min) item.setAttribute("aria-current", "true");
+    item.append(h("span", "band-range", range), h("b", "", tier.name));
+    bands.append(item);
+  });
   card.append(
     h("p", "fail-kicker", "通勤结束"),
     score,
@@ -37,11 +46,13 @@ export function showResult(overlay: HTMLElement, r: RunResult, onAgain: () => vo
     h("p", "fail-label", "荣获成就"),
     title,
     h("p", "fail-waters", `收集了 ${r.waters} 瓶大水`),
+    bands,
     again,
   );
   overlay.replaceChildren(card);
   overlay.classList.add("on", "result-on");
-  again.focus();
+  overlay.scrollTop = 0;
+  again.focus({ preventScroll: true });
 }
 
 function h(tag: string, className = "", text?: string) {

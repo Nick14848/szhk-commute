@@ -22,7 +22,7 @@ globalThis.requestAnimationFrame = () => 1;
 globalThis.cancelAnimationFrame = noop;
 globalThis.localStorage = {getItem: () => null, setItem: noop};
 const dir = mkdtempSync(join(tmpdir(), "szhk-engine-"));
-let Game, DAY_LEN, STAGES, hitBox, overlaps, walkSpeed, speedAt;
+let Game, DAY_LEN, STAGES, TRAIN_START, STATION_LEN, hitBox, overlaps, walkSpeed, speedAt;
 try {
   const outfile = join(dir, "engine.mjs");
   await esbuild.build({stdin:{contents:'export {Game} from "./src/game/engine.ts"; export {hitBox,overlaps,walkSpeed} from "./src/game/entities.ts"; export {speedAt} from "./src/game/balance.ts";',resolveDir:process.cwd()}, outfile, bundle:true, platform:"node", format:"esm", define:{"import.meta.env.DEV":"true"}, logLevel:"silent"});
@@ -32,6 +32,8 @@ try {
   const stages = await import(pathToFileURL(stageFile).href);
   DAY_LEN = stages.DAY_LEN;
   STAGES = stages.SEGMENTS;
+  TRAIN_START = stages.TRAIN_START;
+  STATION_LEN = stages.STATION_LEN;
 } finally { rmSync(dir, {recursive:true, force:true}); }
 
 function make(seed) {
@@ -72,7 +74,7 @@ for (let frame=0; timing.distance < DAY_LEN && frame<60*400; frame++) {
 }
 assert.ok(timing.distance >= DAY_LEN, "timing route must finish");
 assert.equal(timing.boardedDay, 1, "one train boarding on first day");
-assert.ok(times.at(-1).elapsed>250 && times.at(-1).elapsed<330, JSON.stringify(times));
+assert.ok(times.at(-1).elapsed>240 && times.at(-1).elapsed<300, JSON.stringify(times));
 timing.dispose();
 
 // Exercise generated patterns through actual collision code, normal step, no invulnerability.
@@ -128,7 +130,8 @@ function traversable(g, allowDouble) {
   return false;
 }
 let windows = 0;
-for (let seed=1; seed<=20; seed++) for (const at of [1800,3800,6900,10000,18000,24600]) {
+const windowsAt = [1800,3800,6900, ...Array.from({length:14},(_,i)=>TRAIN_START+i*STATION_LEN+200), DAY_LEN+18000];
+for (let seed=1; seed<=20; seed++) for (const at of windowsAt) {
   const g = make(seed * 20261026);
   g.warp(at); g.runTime=180; g.prepLeft=0;
   g.speed=speedAt(at,180);
@@ -140,6 +143,44 @@ for (let seed=1; seed<=20; seed++) for (const at of [1800,3800,6900,10000,18000,
   windows++;
   g.dispose();
 }
+
+// Spawn complete routes without collisions only to audit content distribution.
+// Passability is independently tested above with actual player boxes and physics.
+let permitsGenerated = 0, threeKidFiles = 0;
+const trainPeopleByStation = Array.from({length:14},()=>0);
+for (let seed=1; seed<=40; seed++) {
+  const g = make(seed*3571);
+  g.runTime=180;
+  g.prepLeft=0;
+  const seen = new Set();
+  const permits = [];
+  const kids = [];
+  for (let at=52; at<DAY_LEN*2; at+=40) {
+    g.distance=at; g.cam=at-52; g.speed=speedAt(at,180);
+    g.spawn();
+    for (const e of g.entities) {
+      if (seen.has(e)) continue;
+      seen.add(e);
+      if (e.kind==="permit") permits.push(e.x);
+      if (e.kind==="kid") kids.push(e.x);
+      const local=e.x%DAY_LEN;
+      if (local>=TRAIN_START && ["walker","office","luggage","kid","elder","inspector","staff","queue"].includes(e.kind)) {
+        trainPeopleByStation[Math.min(13,Math.floor((local-TRAIN_START)/STATION_LEN))] += e.kind==="queue" ? 3 : 1;
+      }
+      if (e.kind==="caution") assert.ok(STAGES.slice(0,2).some((s)=>e.x%DAY_LEN>=s.start && e.x%DAY_LEN<s.end), `wet floor outside checkpoint ${e.x}`);
+    }
+  }
+  for (const day of [0,1]) assert.ok(permits.filter(x=>Math.floor(x/DAY_LEN)===day).length<=2, `permit daily cap seed=${seed}`);
+  for (let i=1; i<permits.length; i++) assert.ok(permits[i]-permits[i-1]>=2400, `permit chain seed=${seed}`);
+  for (let i=2; i<kids.length; i++) if (Math.abs(kids[i]-kids[i-1]-11)<.001 && Math.abs(kids[i-1]-kids[i-2]-11)<.001) threeKidFiles++;
+  permitsGenerated+=permits.length;
+  g.dispose();
+}
+assert.ok(permitsGenerated>0, "rare permits still appear");
+assert.ok(threeKidFiles>=300, `three-child files should appear regularly: ${threeKidFiles}`);
+const earlyTrainPeople=trainPeopleByStation.slice(0,3).reduce((a,b)=>a+b,0);
+const lateTrainPeople=trainPeopleByStation.slice(-3).reduce((a,b)=>a+b,0);
+assert.ok(lateTrainPeople>earlyTrainPeople*1.08, `late stations must look busier: ${JSON.stringify(trainPeopleByStation)}`);
 // Explicit seat failure fixture: all already-generated foreground groups are cleared.
 const losing = make(21);
 losing.distance = 11000; losing.cam = 11000-52; losing.speed = 96; losing.prepLeft=0;
@@ -151,4 +192,4 @@ assert.equal(losing.canDouble(),false);
 losing.playTime = losing.noDoubleUntil;
 assert.equal(losing.canDouble(),true);
 losing.dispose();
-console.log("engine ok", JSON.stringify({distances:distances.map(x=>Math.round(x)), routeNoCollision:times, searchedObstacleWindows:windows, normalCollisionSeeds:runs}));
+console.log("engine ok", JSON.stringify({distances:distances.map(x=>Math.round(x)), routeNoCollision:times, searchedObstacleWindows:windows, contentAudit:{routes:80,permitsGenerated,threeKidFiles,trainPeopleByStation}, normalCollisionSeeds:runs}));

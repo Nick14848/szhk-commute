@@ -189,7 +189,9 @@ check("wet floor is single-jumpable at opening speed", mod.canClear("caution",62
 check("wet floor uses explicit geometry", mod.obstacleWidth("caution") === 18 && mod.HURT.cautionTop === 19);
 check("two-stage gate geometry", mod.HURT.gateHalf === 16 && mod.HURT.gateTop === 24);
 for (const segment of stages.SEGMENTS) {
-  check(`caution stage ${segment.id}`, segment.id === "train" ? !segment.pool.some(([kind])=>kind==="caution" || kind==="sign") : segment.pool.some(([kind])=>kind==="caution"));
+  const caution = segment.pool.find(([kind])=>kind==="caution");
+  check(`caution stage ${segment.id}`, ["hall","gates"].includes(segment.id) ? caution?.[1] > 0 && caution[1] < .5 : !caution);
+  check(`train has no overhead sign ${segment.id}`, segment.id !== "train" || !segment.pool.some(([kind])=>kind==="sign"));
 }
 check("no invented achievement personality", copy.TITLES.every((t)=>!('type' in t) && !('quote' in t) && !('icon' in t)));
 const walkways = stages.travelatorRanges();
@@ -204,8 +206,12 @@ for (const [i, [start, end]] of walkways.entries()) {
 for (let station = 1; station < 14; station++) {
   const at = stages.TRAIN_START + station * stages.STATION_LEN;
   check(`continuous station ${station}`, Math.abs(mod.speedAt(at, 1000) - mod.speedAt(at - .01, 1000)) < .001);
+  const prior = at - stages.STATION_LEN;
+  check(`busier station ${station}`, mod.speedAt(at, 1000) > mod.speedAt(prior, 1000) && mod.gapSeconds(mod.progressOf(at), .5) < mod.gapSeconds(mod.progressOf(prior), .5));
 }
-check("late speed", mod.speedAt(stages.DAY_LEN - 1, 1000) > 111 && mod.speedAt(stages.DAY_LEN - 1, 1000) <= 112);
+check("late speed", mod.speedAt(stages.DAY_LEN - 1, 1000) > 123 && mod.speedAt(stages.DAY_LEN - 1, 1000) <= 124);
+check("opening slightly faster, still eased", mod.SPEED_EASE === 68 && mod.SPEED_BASE === 78 && mod.speedAt(80, 1) < 70);
+check("permit cooldown and cap", mod.PERMIT_MIN_GAP >= 2400 && mod.PERMITS_PER_DAY === 2);
 check("day wrap does not reset speed", Math.abs(mod.speedAt(stages.DAY_LEN, 1000) - mod.speedAt(stages.DAY_LEN - .01, 1000)) < 4);
 check("speed cap", mod.speedAt(stages.DAY_LEN * 100 + walkways[0][0] + 100, 100000) <= 140);
 for (const [oldProgress, expected] of [[600,750],[1700,2200],[2980,4700],[4170,7050],[4580+9*1300+400,7600+9*1300+400],[22780+600,25800+750]]) {

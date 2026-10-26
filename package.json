@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "check": "tsc --noEmit && node scripts/check-assets.mjs && node scripts/sim-check.mjs && node scripts/engine-check.mjs",
-    "test": "node scripts/sim-check.mjs && node scripts/engine-check.mjs",
+    "check": "tsc --noEmit && node scripts/check-assets.mjs && node scripts/ui-check.mjs && node scripts/sim-check.mjs && node scripts/engine-check.mjs",
+    "test": "node scripts/ui-check.mjs && node scripts/sim-check.mjs && node scripts/engine-check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

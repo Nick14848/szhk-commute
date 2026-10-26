@@ -6,6 +6,7 @@ import { cancelBedroom } from "./render/bedroom";
 import { atlasNudge, atlasPageNudge, atlasToggle } from "./render/sprites";
 import { showHome, showResult } from "./ui/screens";
 import { bindRoute, fillFullMap, updateRoute } from "./ui/routeBar";
+import { suppressNativeSelection } from "./ui/nativeInput";
 
 applyTokens(document.documentElement);
 
@@ -86,8 +87,7 @@ function syncHeld() {
   jumpBtn.classList.toggle("is-pressed", [...held.values()].includes("jump"));
 }
 
-// Scope native callout/selection suppression to the game controls, not menu links.
-for (const type of ["contextmenu", "selectstart", "dragstart"]) pad.addEventListener(type, (event) => event.preventDefault());
+const restoreNativeInput = suppressNativeSelection(document.querySelector<HTMLElement>("#app")!, [pad, canvas]);
 
 function watchPointer(button: HTMLButtonElement, kind: "duck" | "jump") {
   button.addEventListener("pointerdown", (event) => {
@@ -221,6 +221,7 @@ if (import.meta.hot) {
     window.removeEventListener("blur", onBlur);
     window.removeEventListener("error", onError);
     window.removeEventListener("unhandledrejection", onReject);
+    restoreNativeInput();
     cancelBedroom();
     game.dispose();
   });

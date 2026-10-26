@@ -71,7 +71,7 @@ export function updateRoute(model: HudModel) {
   if (!hud || !rail || !border || !banner || !status) return;
 
   hud.dataset.mode = model.mode;
-  text("waters", `收集大水 ${model.waters}`);
+  text("waters", String(model.waters));
   text("day-label", `第 ${model.day} 天`);
   const score = Math.max(0, Math.floor(model.score));
   text("score", score > 99999 ? String(score) : String(score).padStart(5, "0"));

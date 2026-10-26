@@ -5,7 +5,7 @@ import { dayOf, local, travelatorBoost, TRAIN_START } from "./stages";
  * 玩法单位和画面宽度分开。
  * 速度、跳跃、生成间距都用这里的数。改画面大小不会改这些数。
  *
- * 第一趟通勤的体验目标大约 4.5 到 5.5 分钟（含准备和过场）。
+ * 第一趟通勤的体验目标大约 4 到 5 分钟（含准备和过场）。
  * 这是设计目标，不是实测通关时间。
  */
 
@@ -26,10 +26,12 @@ export const SAFE_AFTER_DOOR = 1.15;
 export const SEAT_WIN_SEC = 6;
 export const SEAT_LOSE_SEC = 8;
 
-export const SPEED_EASE = 62;
-export const SPEED_BASE = 74;
-export const SPEED_LATE = 112;
+export const SPEED_EASE = 68;
+export const SPEED_BASE = 78;
+export const SPEED_LATE = 124;
 export const TRAVELATOR = 1.12;
+export const PERMIT_MIN_GAP = 2400;
+export const PERMITS_PER_DAY = 2;
 
 export const PHYS = {
   gravity: 900,
@@ -88,9 +90,9 @@ export function progressOf(px: number) {
 export function speedAt(px: number, runTime: number) {
   if (runTime <= 0) return 0;
   const day = Math.max(1, dayOf(px));
-  // Later days stay near the previous day's finish rather than resetting to 74.
+  // Later days stay near the previous day's finish, never reset to opening speed.
   const dayAdd = Math.min(16, (day - 1) * 3);
-  const cruise = day > 1 ? Math.min(128, SPEED_LATE + dayAdd + progressOf(px) * 3) : SPEED_BASE + progressOf(px) * (SPEED_LATE - SPEED_BASE);
+  const cruise = day > 1 ? Math.min(136, SPEED_LATE + dayAdd + progressOf(px) * 3) : SPEED_BASE + progressOf(px) * (SPEED_LATE - SPEED_BASE);
   const v = SPEED_EASE + (cruise - SPEED_EASE) * smoothstep(runTime / RAMP_SECONDS);
   return Math.min(140, v * (1 + (TRAVELATOR - 1) * travelatorBoost(px)));
 }
@@ -159,7 +161,10 @@ export function canClear(kind: string, speed: number, allowDouble: boolean) {
 }
 
 export function gapSeconds(progress: number, roll: number) {
-  return 1.72 - progress * 0.72 + roll * 0.2;
+  // At each train station the approach gets busier, without a sudden speed jump.
+  // Width and recovery time are added by the generator, so a group is not a gap.
+  const p = Math.max(0, Math.min(1, progress));
+  return 1.64 - p * 0.78 + roll * 0.16;
 }
 
 /** 2 或 3 个学童并排走时，整组宽度仍落在二段跳的滞空里。 */
