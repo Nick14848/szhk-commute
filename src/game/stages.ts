@@ -17,6 +17,7 @@ export type Kind =
   | "queue"
   | "gate"
   | "sign"
+  | "caution"
   | "water"
   | "octopus"
   | "permit"
@@ -27,10 +28,10 @@ type Weight = [Kind, number];
 export type Segment = { id: StageId; start: number; end: number; pool: Weight[] };
 
 const BORDER_SPECS: Record<Exclude<StageId, "train">, { len: number; pool: Weight[] }> = {
-  hall: { len: BORDER_LENGTHS.hall, pool: [["walker", 5], ["office", 3], ["kid", 3]] },
-  gates: { len: BORDER_LENGTHS.gates, pool: [["gate", 5], ["walker", 3], ["queue", 2]] },
-  bridge: { len: BORDER_LENGTHS.bridge, pool: [["walker", 3], ["office", 2], ["luggage", 2], ["kid", 2], ["sign", 3]] },
-  platform: { len: BORDER_LENGTHS.platform, pool: [["queue", 3], ["walker", 3], ["elder", 2]] },
+  hall: { len: BORDER_LENGTHS.hall, pool: [["walker", 5], ["office", 3], ["kid", 3], ["caution", 1]] },
+  gates: { len: BORDER_LENGTHS.gates, pool: [["gate", 5], ["walker", 3], ["queue", 2], ["caution", 1]] },
+  bridge: { len: BORDER_LENGTHS.bridge, pool: [["walker", 3], ["office", 2], ["luggage", 2], ["kid", 2], ["sign", 3], ["caution", 1]] },
+  platform: { len: BORDER_LENGTHS.platform, pool: [["queue", 3], ["walker", 3], ["elder", 2], ["caution", 1]] },
 };
 
 const TRAIN_POOL: Weight[] = [

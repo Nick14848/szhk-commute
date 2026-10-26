@@ -36,9 +36,6 @@ export function showBedroom(
   canvas.className = "room";
   const title = document.createElement("h1");
   title.textContent = UI.titleTrad;
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "home-eyebrow";
-  eyebrow.textContent = "SZ ⇄ HK  /  08:08 AM";
   const tagline = document.createElement("p");
   tagline.className = "brand-tagline";
   tagline.textContent = UI.lede;
@@ -62,7 +59,7 @@ export function showBedroom(
   const meta = document.createElement("p");
   meta.className = "meta";
   meta.textContent = save ? UI.best(save.bestScore, save.bestStation) : UI.noRecord;
-  screen.append(eyebrow, title, tagline, canvas, meta, row);
+  screen.append(title, tagline, canvas, meta, row);
   overlay.replaceChildren(screen);
   overlay.classList.add("on");
 

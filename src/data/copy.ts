@@ -88,7 +88,7 @@ export type Place = { id: string; trad: string; simp: string; en: string };
 export const SIGNS = {
   departure: "出境",
   departureEn: "DEPARTURE",
-  echannel: "e-道",
+  echannel: "智能通关",
   echannelEn: "e-CHANNEL",
   residents: "香港居民",
   visitors: "訪客",
@@ -112,12 +112,12 @@ export function arrival(st: Station, next: Station | undefined): [string, string
 }
 
 export const TITLES = [
-  { min: 0, name: "通勤小白", stamp: "小白", type: "起步适应型", quote: "闸机还没认熟，生活已经催你出发。", icon: "ticket" },
-  { min: 300, name: "渐入佳境", stamp: "佳境", type: "路线熟练型", quote: "八达通一响，手速就上线。", icon: "route" },
-  { min: 700, name: "深港通勤", stamp: "双城", type: "双城行动型", quote: "两座城，一条熟练的通勤线。", icon: "city" },
-  { min: 1200, name: "大水教父", stamp: "大水", type: "大水补给型", quote: "路可以堵，大水必须带走。", icon: "water" },
-  { min: 2200, name: "薄肌教父", stamp: "薄肌", type: "自律耐力型", quote: "每次换乘，都是生活的负重训练。", icon: "power" },
-  { min: 4000, name: "版本答案", stamp: "答案", type: "通勤掌控型", quote: "你不是在赶车，你就是时刻表。", icon: "clock" },
+  { min: 0, name: "通勤小白", stamp: "小白" },
+  { min: 300, name: "渐入佳境", stamp: "佳境" },
+  { min: 700, name: "深港通勤", stamp: "双城" },
+  { min: 1200, name: "大水教父", stamp: "大水" },
+  { min: 2200, name: "薄肌教父", stamp: "薄肌" },
+  { min: 4000, name: "版本答案", stamp: "答案" },
 ] as const;
 
 export function titleFor(score: number) {
@@ -152,6 +152,7 @@ const LINES: Record<string, string[]> = {
   queue: ["唔好打尖啊！", "排緊隊，唔該。"],
   inspector: ["入頭等要拍卡㗎！", "呢度頭等車廂。"],
   sign: ["低頭呀！"],
+  caution: ["小心地滑。"],
   gate: ["閘門未開。", "請再試一次。"],
   staff: ["唔好撞職員啊！", "讓一讓，多謝。"],
 };

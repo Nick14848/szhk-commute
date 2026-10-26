@@ -185,6 +185,13 @@ const desktop = mod.speedAt(400, 3);
 check("same world position gives the same speed", phone === desktop, `${phone} ${desktop}`);
 
 check("new route geometry", stages.TRAIN_START === 7600 && stages.DAY_LEN === 25800);
+check("wet floor is single-jumpable at opening speed", mod.canClear("caution",62,false));
+check("wet floor uses explicit geometry", mod.obstacleWidth("caution") === 18 && mod.HURT.cautionTop === 19);
+check("two-stage gate geometry", mod.HURT.gateHalf === 16 && mod.HURT.gateTop === 24);
+for (const segment of stages.SEGMENTS) {
+  check(`caution stage ${segment.id}`, segment.id === "train" ? !segment.pool.some(([kind])=>kind==="caution" || kind==="sign") : segment.pool.some(([kind])=>kind==="caution"));
+}
+check("no invented achievement personality", copy.TITLES.every((t)=>!('type' in t) && !('quote' in t) && !('icon' in t)));
 const walkways = stages.travelatorRanges();
 check("three separate belts", walkways.length === 3 && walkways.every(([a,b], i) => b > a && (i === 0 || a > walkways[i-1][1] + 200)));
 for (const [i, [start, end]] of walkways.entries()) {

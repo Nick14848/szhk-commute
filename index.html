@@ -20,7 +20,7 @@
     <meta name="twitter:title" content="深港通勤模拟器" />
     <meta name="twitter:description" content="香港赚钱深圳花。从福田口岸跑上东铁线。By 尼克菜Nick" />
     <meta name="twitter:image" content="https://szhk-commute.vercel.app/og.png" />
-    <meta name="theme-color" content="#252B32" />
+    <meta name="theme-color" content="#F5F5F2" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="深港通勤" />
@@ -38,7 +38,7 @@
             <span id="waters">收集大水 0</span>
             <span id="score-wrap"><span class="score-k">当前分数</span><b id="score">00000</b></span>
           </span>
-          <button id="btn-pause" type="button" aria-label="暂停通勤"><span aria-hidden="true">Ⅱ</span> 暂停</button>
+          <button id="btn-pause" type="button" aria-label="暂停通勤">暂停</button>
         </div>
         <div class="hud-row hud-place">
           <span class="place-cluster">
@@ -58,8 +58,8 @@
       <div id="overlay"></div>
       <p id="layout-note" hidden>屏幕太矮，竖过来更好玩。</p>
       <div id="pad" hidden>
-        <button id="btn-duck" type="button" aria-pressed="false"><span class="control-icon" aria-hidden="true">↓</span><b>蹲</b><small>按住低头</small></button>
-        <button id="btn-jump" type="button"><span class="control-icon" aria-hidden="true">↑</span><b>跳</b><small>再点二段跳</small></button>
+        <button id="btn-duck" type="button" draggable="false" aria-pressed="false"><b>蹲</b><small>按住低头</small></button>
+        <button id="btn-jump" type="button" draggable="false"><b>跳</b><small>再点二段跳</small></button>
       </div>
       <div id="paused" hidden>
         <p id="pause-title">通勤暂停</p>

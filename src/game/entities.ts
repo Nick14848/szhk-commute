@@ -48,6 +48,7 @@ export function entityWidth(kind: Kind) {
   if (kind === "luggage") return HURT.luggageHalf * 2;
   if (kind === "kid") return HURT.kidHalf * 2;
   if (kind === "gate") return HURT.gateHalf * 2;
+  if (kind === "caution") return HURT.cautionHalf * 2;
   if (kind === "sign") return HURT.overheadHalf * 2;
   if (kind === "walker" || kind === "office" || kind === "elder" || kind === "inspector" || kind === "staff") return HURT.personHalf * 2;
   return 12;
@@ -72,6 +73,8 @@ export function hitBox(e: Entity): Box | null {
       return { x0: x - HURT.queueBack, x1: x + HURT.queueFront, y0: bottom, y1: bottom + HURT.personTop };
     case "gate":
       return { x0: x - HURT.gateHalf, x1: x + HURT.gateHalf, y0: bottom, y1: bottom + HURT.gateTop };
+    case "caution":
+      return { x0: x - HURT.cautionHalf, x1: x + HURT.cautionHalf, y0: bottom, y1: bottom + HURT.cautionTop };
     case "sign":
       return {
         x0: x - HURT.overheadHalf,

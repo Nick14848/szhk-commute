@@ -141,7 +141,7 @@ function paintMap(model: HudModel) {
   const passed = model.mode === "train" ? model.node - BORDER.length : -1;
   host.dataset.future = model.mode === "train" ? "0" : "1";
   const phase = document.getElementById("pause-phase");
-  if (phase) phase.textContent = model.mode === "train" ? "東鐵綫 · 往金鐘" : model.placeSimp;
+  if (phase) phase.textContent = "東鐵綫 · 往金鐘";
   host.querySelectorAll<HTMLElement>("[data-stop]").forEach((el) => {
     const id = el.dataset.stop ?? "";
     const idx = STATIONS.findIndex((st) => st.id === id);

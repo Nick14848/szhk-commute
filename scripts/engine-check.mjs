@@ -82,12 +82,12 @@ for (let seed=1; seed<=20; seed++) {
   g.auto = true;
   let frames = 0;
   for (; frames<60*400 && g.distance<DAY_LEN && g.phase!=="over"; frames++) g.step(1/60);
-  runs.push({seed:g.seed, reached:Math.round(g.distance), phase:g.phase, hit:g.deadEntity?.kind, h:Math.round(g.player.h), jumps:g.player.jumps});
+  runs.push({seed:g.seed, reached:Math.round(g.distance), phase:g.phase, hit:g.deadEntity?.kind, h:Math.round(g.player.h), vy:Math.round(g.player.vy), jumps:g.player.jumps});
   assert.equal(g.errors.length, 0);
   assert.ok(Number.isFinite(g.distance) && Number.isFinite(g.score));
   g.dispose();
 }
-assert.ok(runs.some((r) => r.reached >= DAY_LEN), "at least one collision-enabled full-route fixture");
+assert.ok(runs.some((r) => r.reached >= DAY_LEN), `at least one collision-enabled full-route fixture: ${JSON.stringify(runs)}`);
 
 // Bounded input search over freshly generated obstacle windows. This checks the
 // combination, not just canClear(kind) in isolation; no shielding/collision bypass.

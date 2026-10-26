@@ -87,7 +87,7 @@ function syncHeld() {
 }
 
 // Scope native callout/selection suppression to the game controls, not menu links.
-for (const type of ["contextmenu", "selectstart"]) pad.addEventListener(type, (event) => event.preventDefault());
+for (const type of ["contextmenu", "selectstart", "dragstart"]) pad.addEventListener(type, (event) => event.preventDefault());
 
 function watchPointer(button: HTMLButtonElement, kind: "duck" | "jump") {
   button.addEventListener("pointerdown", (event) => {
@@ -112,21 +112,22 @@ watchPointer(jumpBtn, "jump");
 watchPointer(duckBtn, "duck");
 
 duckBtn.addEventListener("keydown", (event) => {
-  if (event.repeat) return;
   if (event.key !== "Enter" && event.key !== " ") return;
   event.preventDefault();
   event.stopPropagation();
+  if (event.repeat) return;
   keyboardDuck = true;
   syncHeld();
 });
 duckBtn.addEventListener("keyup", (event) => {
   if (event.key === "Enter" || event.key === " ") { keyboardDuck = false; syncHeld(); }
 });
+duckBtn.addEventListener("blur", () => { keyboardDuck = false; syncHeld(); });
 jumpBtn.addEventListener("keydown", (event) => {
-  if (event.repeat) return;
   if (event.key !== "Enter" && event.key !== " ") return;
   event.preventDefault();
   event.stopPropagation();
+  if (event.repeat) return;
   game.press();
 });
 

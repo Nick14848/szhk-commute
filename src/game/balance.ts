@@ -51,8 +51,10 @@ export const HURT = {
   personTop: 22,
   queueBack: 18,
   queueFront: 18,
-  gateHalf: 8,
-  gateTop: 18,
+  gateHalf: 16,
+  gateTop: 24,
+  cautionHalf: 9,
+  cautionTop: 19,
   kidHalf: 4,
   kidTop: 16,
   luggageHalf: 9,
@@ -126,6 +128,7 @@ export function obstacleWidth(kind: string) {
   if (kind === "luggage") return HURT.luggageHalf * 2;
   if (kind === "kid") return HURT.kidHalf * 2;
   if (kind === "gate") return HURT.gateHalf * 2;
+  if (kind === "caution") return HURT.cautionHalf * 2;
   if (kind === "sign") return HURT.overheadHalf * 2;
   return HURT.personHalf * 2;
 }
@@ -140,6 +143,7 @@ export function passTime(span: number, speed: number, npc: number) {
 
 function obstacleTop(kind: string) {
   if (kind === "gate") return HURT.gateTop;
+  if (kind === "caution") return HURT.cautionTop;
   if (kind === "kid") return HURT.kidTop;
   return HURT.personTop;
 }

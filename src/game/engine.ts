@@ -35,7 +35,7 @@ import {
   titleFor,
 } from "../data/copy";
 import { fontSC, prefersReducedMotion, tokens } from "../design/tokens";
-import { drawObstacleGate, drawWorld } from "../render/background";
+import { drawObstacleGate, drawCautionSign, drawWorld } from "../render/background";
 import { drawDoor } from "../render/doors";
 import { drawSeatOverlay, type Chip, type HudModel } from "../render/hud";
 import { actorFrame, drawAnchored, paintAtlas, playerSprite } from "../render/sprites";
@@ -319,11 +319,15 @@ export class Game {
     const at: Record<string, number> = {
       hall: PLAYER_VIEW_X,
       gates: SEGMENTS[1]!.start + 80,
+      security: SEGMENTS[1]!.start + 480,
+      manual: 852,
+      advert: 640,
+      caution: 900,
       exit: SEGMENTS[0]!.end - 110,
       bridge: SEGMENTS[2]!.start + 180,
-      belt1: travelatorRanges()[0]![0] + 100,
-      belt2: travelatorRanges()[1]![0] + 100,
-      belt3: travelatorRanges()[2]![0] + 100,
+      belt1: travelatorRanges()[0]![0] - 40,
+      belt2: travelatorRanges()[1]![0] - 40,
+      belt3: travelatorRanges()[2]![0] - 40,
       join: SEGMENTS[2]!.end - 110,
       platform: SEGMENTS[3]!.start + 80,
       train: TRAIN_START + STATION_LEN * 4 + 40,
@@ -335,14 +339,18 @@ export class Game {
     const px = this.distance;
     const show = (kind: Kind, dx: number, h = 0) =>
       this.entities.push(this.make(kind, px + dx, OVERHEAD.has(kind) ? OVERHEAD_Y : h, 0.2));
-    if (shot === "hall") {
+    if (shot === "hall" || shot === "manual" || shot === "advert") {
       show("walker", 78);
       show("water", 130, 26);
       show("luggage", 180);
-    } else if (shot === "gates") {
+    } else if (shot === "gates" || shot === "security") {
       show("gate", 70);
       show("kid", 140);
       show("permit", 190);
+    } else if (shot === "caution") {
+      show("caution", 80);
+      show("water", 140, 26);
+      show("office", 190);
     } else if (shot === "bridge" || shot.startsWith("belt")) {
       show("sign", 90);
       show("water", 140);
@@ -889,7 +897,7 @@ export class Game {
       const phase = this.rng();
       this.entities.push(this.make(kind, x, OVERHEAD.has(kind) ? OVERHEAD_Y : 0, phase));
 
-      const recovery = kind === "sign" || kind === "queue" ? 0.35 : 0;
+      const recovery = kind === "sign" || kind === "queue" || kind === "gate" ? 0.35 : 0;
       const gap = speedThere * (gapSeconds(progress, this.rng()) + recovery) + spanOf(kind);
       const r = this.rng();
       const mid = x + gap * 0.42;
@@ -1017,7 +1025,9 @@ export class Game {
     this.keyDuck = false;
     this.syncDuck();
     if (this.player.grounded && dist > 0 && dist < rel * 0.16) this.press();
-    if (!this.player.grounded && this.player.jumps === 1 && this.player.vy < 10 && dist < rel * 0.2 && next.b.x1 > pb.x0 && this.canDouble()) this.press();
+    const childGroup = next.e.kind === "kid" && ahead.some(({e}) => e !== next.e && e.kind === "kid" && e.x > next.e.x && e.x - next.e.x < 25);
+    const needsDouble = next.e.kind === "gate" || !canClear(next.e.kind, this.speed, false) || childGroup;
+    if (needsDouble && !this.player.grounded && this.player.jumps === 1 && this.player.vy < 10 && dist < rel * 0.2 && next.b.x1 > pb.x0 && this.canDouble()) this.press();
   }
 
   private settleLift() {
@@ -1090,6 +1100,10 @@ export class Game {
       drawObstacleGate(ctx, sx, v.G - e.y);
       return;
     }
+    if (e.kind === "caution") {
+      drawCautionSign(ctx, sx, v.G - e.y);
+      return;
+    }
     const moving = walkSpeed(e.kind) > 0 && !this.board;
     let baseline = v.G - e.y;
     if (PICKUPS.has(e.kind) && e.kind !== "concession" && !this.reduced && !this.paused) {
@@ -1111,17 +1125,19 @@ export class Game {
     const h = 16;
     const left = Math.round(sx - w / 2);
     const top = Math.round(boardBottom - h);
+    const attach = Math.floor((v.frameTop - v.offsetY) / v.pd - this.viewLift) + 8;
     ctx.fillStyle = "#5C6A74";
-    ctx.fillRect(Math.round(sx) - 1, v.T + 2, 2, Math.max(0, top - v.T - 2));
+    for (const dx of [7, w - 8]) ctx.fillRect(left + dx, attach, 1, Math.max(0, top - attach));
     ctx.fillStyle = tokens.yellow;
     ctx.fillRect(left - 2, top - 2, w + 4, h + 4);
-    ctx.fillStyle = "#1E4E8C";
+    ctx.fillStyle = "#F8F8ED";
     ctx.fillRect(left, top, w, h);
-    ctx.fillStyle = "#F7F7F7";
-    ctx.font = `700 8px ${fontSC}`;
+    ctx.fillStyle = "#153B54";
+    ctx.font = `700 7px ${fontSC}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("请勿逗留", Math.round(sx), top + h / 2);
+    ctx.fillText("口岸区域", Math.round(sx), top + 4.5);
+    ctx.fillText("严禁停留", Math.round(sx), top + 12);
   }
 
   private drawPlayer() {

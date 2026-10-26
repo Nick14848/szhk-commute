@@ -3,11 +3,12 @@ export const tokens = {
   bg: "#F7F7F7",
   ink: "#535353",
   inkDeep: "#101114",
-  brandYellow: "#FFE000",
-  brandWhite: "#F7F7F2",
-  steelDark: "#252B32",
-  steelEdge: "#626D77",
-  textMuted: "#B9C1C8",
+  brandYellow: "#FFD900",
+  brandWhite: "#FFFFFF",
+  steelDark: "#082944",
+  steelEdge: "#728B9C",
+  textMuted: "#596875",
+  navy: "#092C4C",
   far: "#DEDEDE",
   mid: "#9C9C9C",
   white: "#FFFFFF",
@@ -20,7 +21,7 @@ export const tokens = {
   floor: "#EDECE8",
   exit: "#0E7A32",
   poster: "#F6F1E6",
-  page: "#EDEAE1",
+  page: "#F5F5F2",
 } as const;
 
 export const fontTC =
@@ -44,6 +45,7 @@ export function applyTokens(root: HTMLElement) {
   s.setProperty("--steel", tokens.steelDark);
   s.setProperty("--steel-edge", tokens.steelEdge);
   s.setProperty("--muted", tokens.textMuted);
+  s.setProperty("--navy", tokens.navy);
   s.setProperty("--font-tc", fontTC);
   s.setProperty("--font-sc", fontSC);
   s.setProperty("--font-led", fontLed);

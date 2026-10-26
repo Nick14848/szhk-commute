@@ -162,28 +162,71 @@ function drawGate(ctx: Ctx, v: View, cam: number, worldX: number, label: string)
 
 /** 自助通道里要跳过去的闸门。红灯、合上的翼门，和背景里打开的通道分开。 */
 export function drawObstacleGate(ctx: Ctx, x: number, ground: number) {
-  const left = Math.round(x) - 9;
-  const top = ground - 22;
-  ctx.fillStyle = "#6E7A82";
-  ctx.fillRect(left, ground - 3, 18, 3);
-  ctx.fillStyle = "#243044";
-  ctx.fillRect(left, top, 3, 19);
-  ctx.fillRect(left + 15, top, 3, 19);
-  ctx.fillStyle = "#D7263D";
-  ctx.fillRect(left, top + 2, 3, 3);
-  ctx.fillRect(left + 15, top + 2, 3, 3);
-  ctx.fillStyle = "#C5DCE6";
-  ctx.fillRect(left + 3, top + 5, 6, 14);
-  ctx.fillRect(left + 9, top + 5, 6, 14);
-  ctx.fillStyle = "#F7F7F7";
-  ctx.fillRect(left + 5, top + 7, 1, 10);
-  ctx.fillRect(left + 11, top + 7, 1, 10);
-  ctx.fillStyle = "#1E4E8C";
-  ctx.fillRect(left - 1, top - 5, 20, 5);
-  ctx.fillStyle = "#F2C230";
-  ctx.fillRect(left + 7, top - 3, 4, 2);
-  ctx.fillStyle = "#D7263D";
-  ctx.fillRect(left + 3, top + 11, 12, 2);
+  const cx = Math.round(x);
+  ctx.fillStyle = "#677D89";
+  ctx.fillRect(cx - 17, ground - 2, 34, 2);
+  for (const dx of [-16, 2]) {
+    const door = cx + dx;
+    ctx.fillStyle = "#5F7682";
+    ctx.fillRect(door, ground - 23, 3, 23);
+    ctx.fillRect(door + 11, ground - 23, 3, 23);
+    ctx.fillStyle = "#D8E0E1";
+    ctx.fillRect(door + 1, ground - 22, 2, 18);
+    ctx.fillRect(door + 11, ground - 22, 2, 18);
+    // Two closed, double-opening glass leaves per stage of the channel.
+    ctx.fillStyle = "#80ADBD";
+    ctx.fillRect(door + 3, ground - 19, 4, 18);
+    ctx.fillRect(door + 7, ground - 19, 4, 18);
+    ctx.fillStyle = "#E2F0EE";
+    ctx.fillRect(door + 4, ground - 18, 1, 15);
+    ctx.fillRect(door + 9, ground - 18, 1, 15);
+    ctx.fillStyle = "#547885";
+    ctx.fillRect(door + 7, ground - 19, 1, 18);
+    ctx.fillStyle = "#C55C4D";
+    ctx.fillRect(door, ground - 23, 3, 2);
+  }
+  // First door: card reader. Second: small face screen + fingerprint pad.
+  ctx.fillStyle = "#163F59";
+  ctx.fillRect(cx - 18, ground - 16, 5, 7);
+  ctx.fillStyle = "#8DD0E1";
+  ctx.fillRect(cx - 17, ground - 15, 3, 3);
+  ctx.fillStyle = "#344C5C";
+  ctx.fillRect(cx + 3, ground - 28, 11, 7);
+  ctx.fillStyle = "#86BFC5";
+  ctx.fillRect(cx + 4, ground - 27, 9, 5);
+  ctx.fillStyle = "#E3F1EA";
+  ctx.fillRect(cx + 7, ground - 26, 2, 2);
+  ctx.fillRect(cx + 6, ground - 24, 4, 1);
+  ctx.fillStyle = "#344C5C";
+  ctx.fillRect(cx + 14, ground - 14, 4, 5);
+  ctx.fillStyle = "#8DD0C6";
+  ctx.fillRect(cx + 15, ground - 13, 2, 3);
+}
+
+/** Original A-frame wet-floor sign. Legs sit on the collision baseline. */
+export function drawCautionSign(ctx: Ctx, x: number, ground: number) {
+  const cx = Math.round(x);
+  ctx.fillStyle = "#A78323";
+  ctx.beginPath();
+  ctx.moveTo(cx + 2, ground - 21); ctx.lineTo(cx + 7, ground - 21);
+  ctx.lineTo(cx + 11, ground); ctx.lineTo(cx + 7, ground); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#F4CC35";
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, ground - 21); ctx.lineTo(cx + 3, ground - 21);
+  ctx.lineTo(cx + 8, ground); ctx.lineTo(cx - 10, ground); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#6A592B";
+  ctx.fillRect(cx - 10, ground - 1, 4, 1); ctx.fillRect(cx + 5, ground - 1, 6, 1);
+  ctx.fillRect(cx - 2, ground - 19, 3, 1);
+  ctx.beginPath();
+  ctx.moveTo(cx - 1, ground - 17); ctx.lineTo(cx - 5, ground - 11); ctx.lineTo(cx + 3, ground - 11); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#F4CC35";
+  ctx.fillRect(cx - 1, ground - 15, 1, 2);
+  ctx.fillRect(cx - 1, ground - 12, 1, 1);
+  ctx.fillStyle = "#493E21";
+  ctx.font = `700 5px ${fontTC}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("小心", cx - 1, ground - 8);
+  ctx.fillText("地滑", cx - 1, ground - 3);
 }
 
 function drawStage(id: StageId, s: Scene) {
@@ -195,6 +238,76 @@ function drawStage(id: StageId, s: Scene) {
   else if (id === "bridge") bridge(s);
   else if (id === "platform") platform(s);
   else train(s);
+  if (id !== "train") stageDetails(id, s);
+}
+
+function stageDetails(id: Exclude<StageId, "train">, s: Scene) {
+  const {ctx, v, cam, base} = s;
+  const seg = SEGMENTS.find((seg) => seg.id === id)!;
+  const emergencyAt = {hall:1070, gates:1060, bridge:2180, platform:480}[id];
+  const ex = Math.round(base + seg.start + emergencyAt - cam);
+  if (ex > -70 && ex < v.W + 70) exitSign(ctx, ex, v.G - 76);
+  if (id === "hall" || id === "bridge") {
+    const at = id === "hall" ? 660 : 1280;
+    const ax = Math.round(base + seg.start + at - cam);
+    if (ax > -70 && ax < v.W + 70) adPoster(ctx, ax, v.G - 121);
+  }
+  if (id === "gates") {
+    for (const at of [540, 1120]) {
+      const x = Math.round(base + seg.start + at - cam);
+      if (x > -140 && x < v.W + 140) securityScanner(ctx, x, v.G - 22, s.time, s.reduced);
+    }
+  }
+}
+
+function exitSign(ctx: Ctx, x: number, y: number) {
+  ctx.fillStyle = "#D2DCD3"; ctx.fillRect(x - 1, y - 1, 58, 17);
+  ctx.fillStyle = "#287253"; ctx.fillRect(x, y, 56, 15);
+  ctx.fillStyle = "#F4F8EB";
+  ctx.fillRect(x + 4, y + 3, 7, 9);
+  ctx.fillStyle = "#287253"; ctx.fillRect(x + 5, y + 4, 5, 8);
+  ctx.fillStyle = "#F4F8EB";
+  ctx.fillRect(x + 10, y + 4, 2, 2); ctx.fillRect(x + 9, y + 7, 4, 2);
+  ctx.fillRect(x + 8, y + 9, 2, 3); ctx.fillRect(x + 12, y + 9, 2, 2);
+  ctx.fillRect(x + 16, y + 7, 7, 2);
+  ctx.beginPath(); ctx.moveTo(x + 24, y + 8); ctx.lineTo(x + 20, y + 4); ctx.lineTo(x + 20, y + 12); ctx.closePath(); ctx.fill();
+  ctx.font = `700 6px ${fontTC}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText("紧急出口", x + 27, y + 7.5);
+}
+
+function adPoster(ctx: Ctx, x: number, y: number) {
+  ctx.fillStyle = "#A1ADB0"; ctx.fillRect(x - 1, y - 1, 62, 37);
+  ctx.fillStyle = "#F6F3E9"; ctx.fillRect(x, y, 60, 35);
+  ctx.fillStyle = "#183F56"; ctx.fillRect(x + 3, y + 3, 54, 24);
+  ctx.fillStyle = "#F7F6ED";
+  ctx.font = `700 10px ${fontTC}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("广告示意", x + 30, y + 15);
+  ctx.fillStyle = "#A2B0AE"; ctx.fillRect(x + 7, y + 30, 29, 1); ctx.fillRect(x + 39, y + 30, 14, 1);
+}
+
+function securityScanner(ctx: Ctx, x: number, floor: number, time: number, reduced: boolean) {
+  // Large, muted background equipment: separate depth plane, never a hitbox.
+  ctx.fillStyle = "#8C9EA7"; ctx.fillRect(x - 14, floor - 13, 103, 8);
+  ctx.fillStyle = "#3C505C"; ctx.fillRect(x - 12, floor - 13, 99, 3);
+  const shift = reduced ? 0 : Math.floor(time * 8) % 4;
+  ctx.fillStyle = "#819298";
+  for (let roller = x - 10 + shift; roller < x + 85; roller += 4) ctx.fillRect(roller, floor - 12, 1, 2);
+  for (const leg of [-8, 77]) ctx.fillRect(x + leg, floor - 5, 4, 5);
+  ctx.fillStyle = "#BAC7CD"; ctx.fillRect(x + 8, floor - 61, 49, 49);
+  ctx.fillStyle = "#E2E7E6"; ctx.fillRect(x + 11, floor - 58, 43, 43);
+  ctx.fillStyle = "#253D4D"; ctx.fillRect(x + 10, floor - 29, 42, 16);
+  ctx.fillStyle = "#435560";
+  for (let strip = 0; strip < 7; strip++) ctx.fillRect(x + 12 + strip * 5, floor - 28, 3, 14);
+  ctx.fillStyle = "#405B6A"; ctx.fillRect(x + 37, floor - 53, 16, 13);
+  ctx.fillStyle = "#8AB4BD"; ctx.fillRect(x + 39, floor - 51, 12, 9);
+  ctx.fillStyle = "#6B8C8E"; ctx.fillRect(x - 2, floor - 23, 9, 10);
+  ctx.fillStyle = "#D1DAD9"; ctx.fillRect(x, floor - 23, 5, 2);
+  // Walk-through arch behind the foreground running lane.
+  ctx.fillStyle = "#8198A4"; ctx.fillRect(x + 94, floor - 72, 30, 72);
+  ctx.fillStyle = "#D2DDE1"; ctx.fillRect(x + 98, floor - 65, 22, 65);
+  ctx.fillStyle = "#B8C9D1"; ctx.fillRect(x + 101, floor - 61, 16, 61);
+  ctx.fillStyle = "#647E89"; ctx.fillRect(x + 95, floor - 70, 28, 5);
+  ctx.fillStyle = "#91B4A6"; ctx.fillRect(x + 99, floor - 69, 18, 2);
 }
 
 function floor(s: Scene, color: string = tokens.floor) {
@@ -286,16 +399,23 @@ function hall(s: Scene) {
   });
   lamps(s, time, tokens.exit);
   tile(cam * 0.35, 150, v.W, (x, i) => booth(ctx, x, v.G, hash(i) > 0.5));
-  tile(cam * 0.5, 220, v.W, (x) => {
-    ctx.fillStyle = "#243044";
-    ctx.fillRect(x, v.T + 18, 70, 22);
-    ctx.fillStyle = tokens.line;
-    ctx.fillRect(x, v.T + 18, 70, 3);
+  tile(cam * 0.5, 250, v.W, (x, i) => {
+    const manual = Math.abs(i) % 2 === 0;
+    ctx.fillStyle = "#81949D";
+    for (const dx of [10, 81]) ctx.fillRect(x + dx, v.T + 2, 1, 16);
+    ctx.fillStyle = "#164C89";
+    ctx.fillRect(x, v.T + 18, 92, 26);
+    ctx.fillStyle = "#43BEDD";
+    ctx.fillRect(x, v.T + 42, 92, 2);
     ctx.fillStyle = "#F7F7F7";
     ctx.font = `700 9px ${fontTC}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(SIGNS.departure, x + 35, v.T + 30);
+    ctx.fillText(manual ? "人工查验" : SIGNS.departure, x + 40, v.T + 28);
+    ctx.font = `500 6px ${fontTC}`;
+    ctx.fillText(manual ? "Manual Channel" : SIGNS.departureEn, x + 40, v.T + 37);
+    ctx.fillRect(x + 76, v.T + 29, 9, 2);
+    ctx.beginPath(); ctx.moveTo(x + 89, v.T + 30); ctx.lineTo(x + 83, v.T + 25); ctx.lineTo(x + 83, v.T + 35); ctx.closePath(); ctx.fill();
   });
   ctx.fillStyle = tokens.yellow;
   ctx.fillRect(0, v.G + 4, v.W, 4);
@@ -337,6 +457,21 @@ function gates(s: Scene) {
   ctx.fillRect(0, v.T, v.W, 8);
   ceiling(s);
   columns(s, 200, 0.3);
+  const panelTop = v.T + 44;
+  const panelH = Math.max(18, v.G - 104 - panelTop);
+  tile(cam * 0.3, 200, v.W, (x) => {
+    ctx.fillStyle = "#CDD8DC";
+    ctx.fillRect(x + 16, panelTop, 166, panelH);
+    ctx.fillStyle = "#E0E6E6";
+    ctx.fillRect(x + 18, panelTop + 2, 162, panelH - 4);
+    ctx.fillStyle = "#BACAD0";
+    ctx.fillRect(x + 70, panelTop, 1, panelH);
+    ctx.fillRect(x + 126, panelTop, 1, panelH);
+    ctx.fillStyle = "#BBC9CD";
+    ctx.fillRect(x + 38, panelTop + 12, 120, 5);
+    ctx.fillStyle = "#839AA5";
+    for (let louver = 0; louver < 28; louver++) ctx.fillRect(x + 42 + louver * 4, panelTop + 13, 1, 3);
+  });
   lamps(s, time, tokens.exit);
   tile(cam * 0.45, 28, v.W, (x, i) => {
     ctx.fillStyle = tokens.far;
@@ -346,7 +481,7 @@ function gates(s: Scene) {
     ctx.fillRect(x + 1, v.G - 24, 2, 2);
   });
   tile(cam * 0.6, 220, v.W, (x) => {
-    sign(s, x, signY(v), SIGNS.echannel, SIGNS.echannelEn);
+    sign(s, x, v.T + 18, SIGNS.echannel, SIGNS.echannelEn);
   });
 }
 
@@ -388,29 +523,27 @@ function bridge(s: Scene) {
     ctx.textAlign = "left";
     ctx.fillText(SIGNS.hk, bx + 4, v.G + 4);
   }
-  tile(cam * 0.4, 220, v.W, (x) => {
-    ctx.fillStyle = "#1E4E8C";
-    ctx.fillRect(x, v.T + 16, 2, 18);
-    ctx.fillRect(x - 28, v.T + 32, 60, 16);
-    ctx.fillStyle = "#F7F7F7";
-    ctx.font = `700 8px ${fontTC}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("往香港", x + 2, v.T + 40);
-  });
 
-  for (const [index, [a, b]] of travelatorRanges().entries()) {
+  for (const [a, b] of travelatorRanges()) {
   const tx0 = Math.round(base + a - cam);
   const tx1 = Math.round(base + b - cam);
   if (tx1 > 0 && tx0 < v.W) {
+    // Hanging wayfinding at each actual walkway entrance, not an extra HUD.
+    const boardY = v.T + 24;
+    ctx.fillStyle = "#7F949F";
+    for (const dx of [10, 58]) ctx.fillRect(tx0 + dx, v.T + 2, 1, boardY - v.T - 2);
+    ctx.fillStyle = "#173F61"; ctx.fillRect(tx0 + 2, boardY, 66, 19);
+    ctx.fillStyle = "#F7FAF2";
+    ctx.font = `700 8px ${fontTC}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("自助人行道", tx0 + 35, boardY + 9.5);
     for (let x = tx0; x < tx1; x += 28) {
       ctx.fillStyle = "#C5D6E0";
-      ctx.fillRect(x, v.G - 36, 2, 36);
+      ctx.fillRect(x, v.G - 24, 2, 24);
       ctx.fillStyle = "#E7F2F6";
-      ctx.fillRect(x + 2, v.G - 32, 24, 14);
+      ctx.fillRect(x + 2, v.G - 20, 24, 12);
     }
     ctx.fillStyle = "#5C6770";
-    ctx.fillRect(tx0, v.G - 36, Math.max(0, tx1 - tx0), 3);
+    ctx.fillRect(tx0, v.G - 24, Math.max(0, tx1 - tx0), 3);
     ctx.fillStyle = "#8E979E";
     const teeth = reduced ? 0 : Math.floor(time * 30) % 4;
     for (let x = tx0 + teeth; x < tx1; x += 4) ctx.fillRect(x, v.G - 2, 2, 2);
@@ -424,11 +557,6 @@ function bridge(s: Scene) {
       ctx.fillRect(x + 1, v.G + 3, 1, 1);
       ctx.fillRect(x, v.G + 4, 1, 1);
     }
-    ctx.fillStyle = tokens.ink;
-    ctx.font = `600 7px ${fontTC}`;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(`自動步行道 ${index + 1}/3 →`, tx0 + 6, v.G + 8);
     ctx.fillStyle = "#E4CA67";
     for (const edge of [tx0, tx1 - 4]) ctx.fillRect(edge, v.G - 1, 4, 7);
   }
@@ -546,32 +674,17 @@ function train(s: Scene) {
 
   const origin = base + TRAIN_START;
   const module = 220;
-  if (top - v.T > 85) {
-    const panelY = Math.round((v.T + top) / 2) - 17;
-    tile(cam, module, v.W, (x) => {
-      ctx.fillStyle = "#DCE2DD";
-      ctx.fillRect(x + 8, v.T + 20, 150, top - v.T - 42);
-      ctx.fillStyle = "#F6F7EF";
-      ctx.fillRect(x + 12, panelY - 4, 142, 48);
-      ctx.fillStyle = "#657C88";
-      ctx.fillRect(x + 12, panelY - 4, 142, 1);
-      ctx.font = `700 11px ${fontTC}`;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#253E4C";
-      ctx.fillText("東鐵綫", x + 22, panelY + 9);
-      ctx.font = `500 6px ${fontTC}`;
-      ctx.fillText("East Rail Line   →   金鐘 Admiralty", x + 22, panelY + 22);
-      ctx.fillStyle = tokens.line;
-      ctx.fillRect(x + 22, panelY + 32, 119, 2);
-      for (let dot = 0; dot < 7; dot++) {
-        ctx.fillStyle = "#355363";
-        ctx.fillRect(x + 24 + dot * 18, panelY + 30, 5, 5);
-        ctx.fillStyle = "#F6F7EF";
-        ctx.fillRect(x + 25 + dot * 18, panelY + 31, 3, 3);
-      }
-    });
-  }
+  // Quiet formed ceiling panels and ventilation, no repeated route display.
+  tile(cam, module, v.W, (x) => {
+    ctx.fillStyle = "#D5DDD9";
+    ctx.fillRect(x + 8, v.T + 20, 1, Math.max(0, top - v.T - 42));
+    ctx.fillRect(x + 160, v.T + 20, 1, Math.max(0, top - v.T - 42));
+    ctx.fillStyle = "#CAD3D1";
+    const ventY = Math.max(v.T + 23, top - 29);
+    ctx.fillRect(x + 28, ventY, 112, 5);
+    ctx.fillStyle = "#8D9E9F";
+    for (let i = 0; i < 26; i++) ctx.fillRect(x + 31 + i * 4, ventY + 1, 1, 3);
+  });
   const firstMod = Math.floor((cam - 30 - origin) / module) - 1;
   for (let m = firstMod; m < firstMod + 6; m++) {
     const wx = origin + m * module;
@@ -608,12 +721,23 @@ function train(s: Scene) {
     ctx.fillRect(x + 171, top - 3, 42, farFloor - top + 3);
     ctx.fillStyle = "#D6E0DF";
     ctx.fillRect(x + 173, top - 1, 38, farFloor - top - 1);
-    ctx.fillStyle = "#384E5A";
-    ctx.fillRect(x + 177, top + 7, 11, 24);
-    ctx.fillRect(x + 196, top + 7, 11, 24);
-    ctx.fillStyle = "#8CAEB9";
-    ctx.fillRect(x + 178, top + 9, 9, 19);
-    ctx.fillRect(x + 197, top + 9, 9, 19);
+    for (const win of [177, 196]) {
+      ctx.fillStyle = "#263D49";
+      ctx.fillRect(x + win + 2, top + 5, 7, 28);
+      ctx.fillRect(x + win, top + 7, 11, 24);
+      ctx.fillStyle = "#9DB7BE";
+      ctx.fillRect(x + win + 2, top + 8, 7, 21);
+      ctx.fillRect(x + win + 1, top + 10, 9, 17);
+      ctx.fillStyle = "#D0DFDF";
+      ctx.fillRect(x + win + 3, top + 10, 1, 14);
+    }
+    for (const edge of [170, 212]) {
+      ctx.fillStyle = "#DBBD50"; ctx.fillRect(x + edge, top + 1, 2, farFloor - top - 1);
+      ctx.fillStyle = "#3E4B4C";
+      for (let stripe = top + 1; stripe < farFloor - 3; stripe += 7) ctx.fillRect(x + edge, stripe, 2, 3);
+    }
+    ctx.fillStyle = "#D7C565"; ctx.fillRect(x + 175, top - 2, 34, 5);
+    ctx.fillStyle = "#63684D"; ctx.fillRect(x + 180, top, 24, 1);
     ctx.fillStyle = "#72858F";
     ctx.fillRect(x + 191, top, 1, farFloor - top);
     const pole = x + 164;
@@ -637,22 +761,6 @@ function train(s: Scene) {
   ctx.fillStyle = "#F9FCF6";
   tile(cam, module, v.W, (x) => ctx.fillRect(x + 26, v.T + 9, 112, 2));
 
-  for (let i = firstIdx; i <= lastIdx; i++) {
-    if (sceneryFor(i) === "tunnel") continue;
-    const label = STATIONS[i]!.trad;
-    ctx.font = `600 8px ${fontTC}`;
-    const plateW = Math.ceil(ctx.measureText(label).width) + 16;
-    const sx0 = Math.round(base + TRAIN_START + i * STATION_LEN - cam);
-    const plate = Math.round(sx0 + 72 - plateW / 2);
-    if (plate < -plateW || plate > v.W) continue;
-    const sy = bottom + 2;
-    ctx.fillStyle = "#D9D9D9";
-    ctx.fillRect(plate, sy, plateW, 14);
-    ctx.fillStyle = tokens.ink;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(label, plate + plateW / 2, sy + 7);
-  }
 
   ctx.fillStyle = "#D7DCE1";
   ctx.fillRect(0, v.G + 10, v.W, 8);
@@ -725,8 +833,8 @@ function sign(s: Scene, x: number, y: number, zh: string, en: string, gray = fal
   const { ctx, v } = s;
   ctx.save();
   ctx.beginPath();
-  ctx.rect(-20, -40, v.W + 40, v.H + 80);
-  for (const sx of gateBands(s)) ctx.rect(sx - 58, -40, 116, v.H + 80);
+  ctx.rect(-20, v.T - 8, v.W + 40, v.H - v.T + 16);
+  for (const sx of gateBands(s)) ctx.rect(sx - 58, v.T - 8, 116, v.H - v.T + 16);
   ctx.clip("evenodd");
   const english = showEnglish(v);
   ctx.font = `600 9px ${fontTC}`;
