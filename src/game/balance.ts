@@ -1,5 +1,5 @@
 import { STATIONS } from "../data/copy";
-import { dayOf, local, travelatorBoost, TRAIN_START } from "./stages";
+import { dayOf, local, SEGMENTS, travelatorBoost, TRAIN_START } from "./stages";
 
 /**
  * 玩法单位和画面宽度分开。
@@ -28,7 +28,7 @@ export const SEAT_LOSE_SEC = 8;
 
 export const SPEED_EASE = 68;
 export const SPEED_BASE = 78;
-export const SPEED_LATE = 124;
+export const SPEED_LATE = 132;
 export const TRAVELATOR = 1.12;
 export const PERMIT_MIN_GAP = 2400;
 export const PERMITS_PER_DAY = 2;
@@ -66,6 +66,7 @@ export const HURT = {
 };
 
 const PICKUPS = new Set(["water", "octopus", "permit", "concession"]);
+const AREA_BOUNDARIES = SEGMENTS.slice(1).map((segment) => segment.start);
 
 export function parseTimeScale(raw: number): number {
   if (!Number.isFinite(raw)) return 1;
@@ -86,13 +87,23 @@ export function progressOf(px: number) {
   return 0.3 + ((along - TRAIN_START) / (STATIONS.length * 1300)) * 0.7;
 }
 
+/** 每换一个区域提一档，但用约 2–3 秒的空间坡道接上，不在接缝突变。 */
+export function areaPaceOf(px: number) {
+  const along = local(px);
+  let lifts = 0;
+  for (const boundary of AREA_BOUNDARIES) lifts += smoothstep((along - boundary + 90) / 240);
+  return lifts / AREA_BOUNDARIES.length;
+}
+
 /** 世界单位/秒。不读取视野宽度。 */
 export function speedAt(px: number, runTime: number) {
   if (runTime <= 0) return 0;
   const day = Math.max(1, dayOf(px));
   // Later days stay near the previous day's finish, never reset to opening speed.
   const dayAdd = Math.min(16, (day - 1) * 3);
-  const cruise = day > 1 ? Math.min(136, SPEED_LATE + dayAdd + progressOf(px) * 3) : SPEED_BASE + progressOf(px) * (SPEED_LATE - SPEED_BASE);
+  const cruise = day > 1
+    ? Math.min(136, SPEED_LATE + dayAdd + progressOf(px) * 3)
+    : SPEED_BASE + progressOf(px) * (SPEED_LATE - SPEED_BASE - 16) + areaPaceOf(px) * 16;
   const v = SPEED_EASE + (cruise - SPEED_EASE) * smoothstep(runTime / RAMP_SECONDS);
   return Math.min(140, v * (1 + (TRAVELATOR - 1) * travelatorBoost(px)));
 }
@@ -160,20 +171,20 @@ export function canClear(kind: string, speed: number, allowDouble: boolean) {
   return need <= single + 0.28;
 }
 
-export function gapSeconds(progress: number, roll: number) {
+export function gapSeconds(progress: number, roll: number, areaPace = 0) {
   // At each train station the approach gets busier, without a sudden speed jump.
   // Width and recovery time are added by the generator, so a group is not a gap.
   const p = Math.max(0, Math.min(1, progress));
-  return 1.64 - p * 0.78 + roll * 0.16;
+  return 1.55 - p * 0.7 - Math.max(0, Math.min(1, areaPace)) * 0.1 + roll * 0.14;
 }
 
-/** 2 或 3 个学童并排走时，整组宽度仍落在二段跳的滞空里。 */
-export function kidFileClear(count: number, speed: number) {
+/** 整组学童要按当前能否二段跳来校验，不能只逐个判断。 */
+export function kidFileClear(count: number, speed: number, allowDouble = true) {
   const step = 11;
   const width = HURT.kidHalf * 2 + Math.max(0, count - 1) * step;
   const need = passTime(HURT.playerHalf * 2 + width, speed, npcSpeed("kid"));
   const single = jumpClearance(HURT.kidTop) * 0.9;
-  return need <= single + 0.28;
+  return need <= single + (allowDouble ? 0.28 : 0);
 }
 
 /**

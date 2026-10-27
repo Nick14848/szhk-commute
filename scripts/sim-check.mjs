@@ -209,8 +209,17 @@ for (let station = 1; station < 14; station++) {
   const prior = at - stages.STATION_LEN;
   check(`busier station ${station}`, mod.speedAt(at, 1000) > mod.speedAt(prior, 1000) && mod.gapSeconds(mod.progressOf(at), .5) < mod.gapSeconds(mod.progressOf(prior), .5));
 }
-check("late speed", mod.speedAt(stages.DAY_LEN - 1, 1000) > 123 && mod.speedAt(stages.DAY_LEN - 1, 1000) <= 124);
+check("late speed", mod.speedAt(stages.DAY_LEN - 1, 1000) > 131 && mod.speedAt(stages.DAY_LEN - 1, 1000) <= 132);
 check("opening slightly faster, still eased", mod.SPEED_EASE === 68 && mod.SPEED_BASE === 78 && mod.speedAt(80, 1) < 70);
+for (const segment of stages.SEGMENTS.slice(1)) {
+  const at=segment.start;
+  check(`area smooth ${segment.id}`, Math.abs(mod.speedAt(at+.01,180)-mod.speedAt(at-.01,180))<.003);
+  check(`area pace lift ${segment.id}`, mod.speedAt(at+160,180)>mod.speedAt(at-100,180)+4);
+  check(`area density lift ${segment.id}`, mod.gapSeconds(mod.progressOf(at+160),.5,mod.areaPaceOf(at+160))<mod.gapSeconds(mod.progressOf(at-100),.5,mod.areaPaceOf(at-100)));
+}
+check("early triple needs real second jump at 80", !mod.kidFileClear(3,80,false) && mod.kidFileClear(3,80,true));
+check("narrow file passes without second jump at 80", mod.kidFileClear(2,80,false));
+check("late triple passes without second jump", mod.kidFileClear(3,132,false));
 check("permit cooldown and cap", mod.PERMIT_MIN_GAP >= 2400 && mod.PERMITS_PER_DAY === 2);
 check("day wrap does not reset speed", Math.abs(mod.speedAt(stages.DAY_LEN, 1000) - mod.speedAt(stages.DAY_LEN - .01, 1000)) < 4);
 check("speed cap", mod.speedAt(stages.DAY_LEN * 100 + walkways[0][0] + 100, 100000) <= 140);

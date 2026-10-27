@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>深港通勤 · 本地竖屏演示导出</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;padding:24px;background:#edf1f2;color:#163b55;font:15px system-ui,sans-serif}
+    main{display:flex;gap:28px;justify-content:center;align-items:flex-start}section{max-width:360px}h1{font-size:24px;margin:0 0 14px}p{line-height:1.8}
+    iframe{width:360px;height:640px;flex:none;border:0;outline:1px solid #95a7b1;background:#fff}button,a{display:block;margin:16px 0;padding:14px 18px;border:0;border-radius:3px;background:#123c5b;color:#fff;font:700 15px system-ui;text-align:center;text-decoration:none;cursor:pointer}button:disabled{opacity:.5}
+    #status{white-space:pre-line;font-variant-numeric:tabular-nums}canvas{display:none}video{width:100%;max-height:520px;margin-top:16px;background:#111}[hidden]{display:none!important}
+    @media(max-width:760px){main{flex-direction:column;align-items:center}body{padding:12px}section{width:360px;max-width:100%}}
+  </style>
+</head>
+<body><main>
+  <iframe id="phone" title="360×640 手机版游戏预览" src="/?debug=1"></iframe>
+  <section>
+    <h1>竖屏特色演示</h1>
+    <p>本地开发工具，不发布到线上。使用实际游戏引擎、正常碰撞与自动操作，剪辑跳转展示不同区域；不是手机真机录屏，也不是一镜到底通关。</p>
+    <button id="record" disabled>导出约 60 秒竖屏演示</button>
+    <p id="status">正在检查浏览器视频编码…</p>
+    <a id="download" hidden>下载视频</a>
+    <video id="playback" controls playsinline hidden></video>
+    <p>输出 1080×1920，目标 30fps（以实际编码为准）；无配乐，方便自行配音。来源画面与 DOM 界面实时合成，保留“桌面模拟 · 自动操作 · 片段剪辑”标记。</p>
+  </section>
+</main><canvas id="export" width="1080" height="1920"></canvas>
+<script type="module" src="/src/dev/capture.ts"></script></body>
+</html>

@@ -64,6 +64,7 @@ type Look = {
   badge: boolean;
   small: boolean;
   glasses?: boolean;
+  cap?: boolean;
 };
 
 const adult: Look = {
@@ -302,7 +303,7 @@ function paint(r: Rig, look: Look): Sprite {
     // 阶梯状发梢，保留额头与耳侧的肤色，不再像一整块方帽。
     ctx.fillRect(hx - 3, hy - 6, 7, 1);
     ctx.fillRect(hx - 5, hy - 5, 10, 2);
-    ctx.fillRect(hx - 6, hy - 3, 3, 4);
+    ctx.fillRect(hx - 5, hy - 3, 2, 3);
     ctx.fillRect(hx - 3, hy - 3, 4, 1);
     ctx.fillRect(hx + 2, hy - 3, 2, 1);
   } else {
@@ -310,18 +311,17 @@ function paint(r: Rig, look: Look): Sprite {
     ctx.fillRect(hx - headR, hy - headR + 2, 3, 4);
   }
   if (look.glasses) {
-    // 两个独立镜片和鼻梁；固定在头部局部坐标，所有动作共用。
-    // 暖色镜片避免一个大黑框把整张脸吃掉，近侧镜片稍宽形成 3/4 侧面。
-    ctx.fillStyle = "#36404A";
-    ctx.fillRect(hx - 4, hy - 1, 3, 1);
-    ctx.fillRect(hx - 2, hy - 2, 3, 4);
-    ctx.fillRect(hx + 2, hy - 2, 4, 4);
-    ctx.fillRect(hx + 1, hy - 1, 1, 1);
+    // 镜片只留在脸的正面，不画伸到耳边的深色镜腿/方块。
+    // 细灰框和两点瞳孔在小尺寸下仍能读作眼镜，而不是耳机。
+    ctx.fillStyle = "#52606C";
+    ctx.fillRect(hx - 1, hy - 2, 3, 4);
+    ctx.fillRect(hx + 3, hy - 2, 3, 4);
+    ctx.fillRect(hx + 2, hy - 1, 1, 1);
     ctx.fillStyle = "#F8E6D0";
-    ctx.fillRect(hx - 1, hy - 1, 1, 2);
-    ctx.fillRect(hx + 3, hy - 1, 2, 2);
+    ctx.fillRect(hx, hy - 1, 1, 2);
+    ctx.fillRect(hx + 4, hy - 1, 1, 2);
     ctx.fillStyle = PAL.out;
-    ctx.fillRect(hx - 1, hy, 1, 1);
+    ctx.fillRect(hx, hy, 1, 1);
     ctx.fillRect(hx + 4, hy, 1, 1);
     ctx.fillStyle = PAL.skinD;
     ctx.fillRect(hx + 2, hy + 3, 2, 1);
@@ -342,6 +342,25 @@ function paint(r: Rig, look: Look): Sprite {
     ctx.fillStyle = tokens.yellow;
     ctx.fillRect(hx - 2, hy - headR - 3, 5, 2);
   }
+  if (look.cap) {
+    // 日常棒球帽：奶油色弧形帽冠、只向前伸的藏蓝帽檐，没有制服帽徽。
+    ctx.fillStyle = "#68716F";
+    ctx.fillRect(hx - 3, hy - 8, 6, 1);
+    ctx.fillRect(hx - 5, hy - 7, 10, 2);
+    ctx.fillRect(hx - 6, hy - 5, 12, 2);
+    ctx.fillStyle = "#D4C8AE";
+    ctx.fillRect(hx - 3, hy - 7, 6, 1);
+    ctx.fillRect(hx - 4, hy - 6, 8, 2);
+    ctx.fillRect(hx - 5, hy - 4, 10, 1);
+    ctx.fillStyle = "#EFE3C9";
+    ctx.fillRect(hx - 2, hy - 7, 4, 1);
+    ctx.fillRect(hx - 3, hy - 6, 2, 1);
+    ctx.fillStyle = "#30495D";
+    ctx.fillRect(hx, hy - 4, 10, 1);
+    ctx.fillRect(hx + 4, hy - 3, 5, 1);
+    ctx.fillStyle = "#506D80";
+    ctx.fillRect(hx + 1, hy - 4, 7, 1);
+  }
   return { w: FRAME_W, h: FRAME_H, ax: ANCHOR_X, ay: ANCHOR_Y, img };
 }
 
@@ -351,7 +370,7 @@ function set(rigs: Rig[], look: Look) {
 
 export const PLAYER_PACK = "#4A515A";
 export const PLAYER_PACK_D = "#2C3138";
-const playerLook: Look = { ...adult, pack: PLAYER_PACK, packD: PLAYER_PACK_D, glasses: true };
+const playerLook: Look = { ...adult, pack: PLAYER_PACK, packD: PLAYER_PACK_D, glasses: true, cap: true };
 const walkerLook = look({
   cloth: "#E07A3D",
   clothD: "#B85E28",

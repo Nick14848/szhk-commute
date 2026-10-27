@@ -22,11 +22,14 @@ globalThis.requestAnimationFrame = () => 1;
 globalThis.cancelAnimationFrame = noop;
 globalThis.localStorage = {getItem: () => null, setItem: noop};
 const dir = mkdtempSync(join(tmpdir(), "szhk-engine-"));
-let Game, DAY_LEN, STAGES, TRAIN_START, STATION_LEN, hitBox, overlaps, walkSpeed, speedAt;
+let Game, ProductionGame, DAY_LEN, STAGES, TRAIN_START, STATION_LEN, TRAVELATORS, hitBox, overlaps, walkSpeed, speedAt;
 try {
   const outfile = join(dir, "engine.mjs");
   await esbuild.build({stdin:{contents:'export {Game} from "./src/game/engine.ts"; export {hitBox,overlaps,walkSpeed} from "./src/game/entities.ts"; export {speedAt} from "./src/game/balance.ts";',resolveDir:process.cwd()}, outfile, bundle:true, platform:"node", format:"esm", define:{"import.meta.env.DEV":"true"}, logLevel:"silent"});
   ({Game,hitBox,overlaps,walkSpeed,speedAt} = await import(pathToFileURL(outfile).href));
+  const productionFile=join(dir,"engine-production.mjs");
+  await esbuild.build({stdin:{contents:'export {Game} from "./src/game/engine.ts";',resolveDir:process.cwd()}, outfile:productionFile, bundle:true, platform:"node", format:"esm", define:{"import.meta.env.DEV":"false"}, logLevel:"silent"});
+  ({Game:ProductionGame}=await import(pathToFileURL(productionFile).href));
   const stageFile = join(dir, "stages.mjs");
   await esbuild.build({entryPoints:["src/game/stages.ts"], outfile:stageFile, bundle:true, platform:"node", format:"esm", logLevel:"silent"});
   const stages = await import(pathToFileURL(stageFile).href);
@@ -34,6 +37,7 @@ try {
   STAGES = stages.SEGMENTS;
   TRAIN_START = stages.TRAIN_START;
   STATION_LEN = stages.STATION_LEN;
+  TRAVELATORS = stages.travelatorRanges();
 } finally { rmSync(dir, {recursive:true, force:true}); }
 
 function make(seed) {
@@ -42,6 +46,20 @@ function make(seed) {
   g.start();
   return g;
 }
+const capture=make(3);
+capture.startCaptureSegment(1700,99);
+assert.equal(capture.debug().seed,99);
+assert.equal(capture.debug().world,1700);
+assert.equal(capture.debug().timeScale,1);
+assert.equal(capture.score,0);
+assert.equal(capture.entities.length,0,"capture must not fabricate obstacles");
+assert.equal(capture.shielded(),false,"capture must not grant invulnerability");
+capture.dispose();
+const productionCapture=new ProductionGame(canvas());
+productionCapture.startCaptureSegment(1700,99);
+assert.equal(productionCapture.uiState().phase,"idle","capture entry must be disabled in production");
+assert.equal(productionCapture.debug().world,52);
+productionCapture.dispose();
 const distances = [];
 for (const hz of [30,60,120]) {
   const g = make(20261026);
@@ -74,7 +92,7 @@ for (let frame=0; timing.distance < DAY_LEN && frame<60*400; frame++) {
 }
 assert.ok(timing.distance >= DAY_LEN, "timing route must finish");
 assert.equal(timing.boardedDay, 1, "one train boarding on first day");
-assert.ok(times.at(-1).elapsed>240 && times.at(-1).elapsed<300, JSON.stringify(times));
+assert.ok(times.at(-1).elapsed>225 && times.at(-1).elapsed<280, JSON.stringify(times));
 timing.dispose();
 
 // Exercise generated patterns through actual collision code, normal step, no invulnerability.
@@ -96,7 +114,15 @@ assert.ok(runs.some((r) => r.reached >= DAY_LEN), `at least one collision-enable
 function traversable(g, allowDouble) {
   const hazards = g.entities.filter((e) => !["water","octopus","permit","concession"].includes(e.kind));
   if (!hazards.length) return true;
-  const speed = g.speed || 100;
+  // The shared world path includes the real smooth area acceleration, rather
+  // than treating a whole boundary window as a constant-speed approximation.
+  const positions=[g.distance];
+  const speeds=[];
+  for (let frame=0; frame<420; frame++) {
+    const speed=speedAt(positions[frame],Math.max(.2,g.runTime)+frame/60);
+    speeds.push(speed);
+    positions.push(positions[frame]+speed/60);
+  }
   const nodes = [{p:new g.player.constructor(), cost:0}];
   let states = nodes;
   const end = Math.max(...hazards.map((e) => e.x)) + 65;
@@ -108,9 +134,9 @@ function traversable(g, allowDouble) {
       const jumped = action === 1 && p.jump(allowDouble);
       let legal = true;
       for (let sub=1; sub<=2; sub++) {
-        p.update(1/60,speed/60);
+        p.update(1/60,speeds[frame+sub-1]/60);
         const t = (frame+sub)/60;
-        const x = g.distance + speed*t;
+        const x = positions[frame+sub];
         const box = p.box(x);
         for (const e of hazards) {
           const b = hitBox({...e,x:e.x+walkSpeed(e.kind)*t});
@@ -143,10 +169,37 @@ for (let seed=1; seed<=20; seed++) for (const at of windowsAt) {
   windows++;
   g.dispose();
 }
+// Boundary windows exercise both sides of each area lift with/without double
+// jump. Include the first gate files and each bridge walkway's entry/exit.
+const boundaryAt=[
+  ...STAGES.slice(1).flatMap(s=>[s.start-180,s.start-100,s.start+60,s.start+170]),
+  ...TRAVELATORS.flatMap(([start,end])=>[start-80,end-80]),
+];
+let boundaryWindows=0;
+for (let seed=1; seed<=8; seed++) for (const at of boundaryAt) for (const allowDouble of [false,true]) {
+  const g=make(seed*4099);
+  g.warp(at); g.runTime=180; g.prepLeft=0; g.speed=speedAt(at,180);
+  if (!allowDouble) g.noDoubleUntil=1000;
+  g.nextSpawn=at+68;
+  g.spawn();
+  assert.ok(traversable(g,allowDouble), `unsolved boundary window seed=${seed}, at=${at}, double=${allowDouble}`);
+  boundaryWindows++;
+  g.dispose();
+}
+// Explicit whole-file fixtures prove an early 3-child double jump and the
+// single-jump fallback, not just each child's individual collision box.
+for (const [at,count,allowDouble] of [[1760,3,true],[1760,2,false],[4300,3,false],[18000,3,false]]) {
+  const g=make(39);
+  g.warp(at); g.runTime=180; g.speed=speedAt(at,180);
+  g.entities=Array.from({length:count},(_,i)=>g.make("kid",at+68+i*11,0,.2+i*.17));
+  assert.ok(traversable(g,allowDouble), `whole child file at=${at} count=${count} double=${allowDouble}`);
+  g.dispose();
+}
 
 // Spawn complete routes without collisions only to audit content distribution.
 // Passability is independently tested above with actual player boxes and physics.
 let permitsGenerated = 0, threeKidFiles = 0;
+const threeKidFilesByArea=Array.from({length:5},()=>0);
 const trainPeopleByStation = Array.from({length:14},()=>0);
 for (let seed=1; seed<=40; seed++) {
   const g = make(seed*3571);
@@ -172,12 +225,16 @@ for (let seed=1; seed<=40; seed++) {
   }
   for (const day of [0,1]) assert.ok(permits.filter(x=>Math.floor(x/DAY_LEN)===day).length<=2, `permit daily cap seed=${seed}`);
   for (let i=1; i<permits.length; i++) assert.ok(permits[i]-permits[i-1]>=2400, `permit chain seed=${seed}`);
-  for (let i=2; i<kids.length; i++) if (Math.abs(kids[i]-kids[i-1]-11)<.001 && Math.abs(kids[i-1]-kids[i-2]-11)<.001) threeKidFiles++;
+  for (let i=2; i<kids.length; i++) if (Math.abs(kids[i]-kids[i-1]-11)<.001 && Math.abs(kids[i-1]-kids[i-2]-11)<.001) {
+    threeKidFiles++;
+    threeKidFilesByArea[STAGES.findIndex(s=>kids[i]%DAY_LEN>=s.start && kids[i]%DAY_LEN<s.end)]++;
+  }
   permitsGenerated+=permits.length;
   g.dispose();
 }
 assert.ok(permitsGenerated>0, "rare permits still appear");
 assert.ok(threeKidFiles>=300, `three-child files should appear regularly: ${threeKidFiles}`);
+assert.ok(threeKidFilesByArea[0]===0 && threeKidFilesByArea[1]>50 && threeKidFilesByArea[2]>100, `early gate/bridge files: ${JSON.stringify(threeKidFilesByArea)}`);
 const earlyTrainPeople=trainPeopleByStation.slice(0,3).reduce((a,b)=>a+b,0);
 const lateTrainPeople=trainPeopleByStation.slice(-3).reduce((a,b)=>a+b,0);
 assert.ok(lateTrainPeople>earlyTrainPeople*1.08, `late stations must look busier: ${JSON.stringify(trainPeopleByStation)}`);
@@ -192,4 +249,4 @@ assert.equal(losing.canDouble(),false);
 losing.playTime = losing.noDoubleUntil;
 assert.equal(losing.canDouble(),true);
 losing.dispose();
-console.log("engine ok", JSON.stringify({distances:distances.map(x=>Math.round(x)), routeNoCollision:times, searchedObstacleWindows:windows, contentAudit:{routes:80,permitsGenerated,threeKidFiles,trainPeopleByStation}, normalCollisionSeeds:runs}));
+console.log("engine ok", JSON.stringify({distances:distances.map(x=>Math.round(x)), routeNoCollision:times, searchedObstacleWindows:windows,boundaryWindows,contentAudit:{routes:80,permitsGenerated,threeKidFiles,threeKidFilesByArea,trainPeopleByStation}, normalCollisionSeeds:runs}));

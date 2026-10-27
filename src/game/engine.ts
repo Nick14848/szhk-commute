@@ -14,6 +14,7 @@ import {
   SEAT_WIN_SEC,
   SPEED_EASE,
   STEP,
+  areaPaceOf,
   canClear,
   gapSeconds,
   kidFileClear,
@@ -315,6 +316,24 @@ export class Game {
       this.setBanner([line, ""], 4.2);
     }
     this.syncUi();
+  }
+
+  /** Local capture entry only: actual seeded gameplay, collisions and 1× time. */
+  startCaptureSegment(at: number, seed: number) {
+    if (!import.meta.env.DEV) return;
+    this.seeded = true;
+    this.seed = seed >>> 0;
+    this.start();
+    this.warp(Number.isFinite(at) ? at : PLAYER_VIEW_X);
+    this.runTime = 180;
+    this.prepLeft = 0;
+    this.speed = speedAt(this.distance, this.runTime);
+    this.nextSpawn = this.distance + this.speed * 1.5;
+    this.setDebug(true, 1);
+    this.banner = null;
+    this.bannerUntil = 0;
+    this.syncLocation(true);
+    this.draw();
   }
 
   loadShot(shot: string) {
@@ -881,14 +900,18 @@ export class Game {
       const allowDouble = this.canDouble();
       const early = this.runTime < RAMP_SECONDS;
       const progress = progressOf(x);
-      if (!early && allowDouble && progress > 0.18 && this.rng() < 0.14 + progress * 0.22) {
-        const count = progress > 0.27 && kidFileClear(3, speedThere) && this.rng() < 0.58 + progress * 0.24 ? 3 : 2;
-        if (kidFileClear(count, speedThere) && !inSafeJoin(x + 24)) {
+      const areaPace = areaPaceOf(x);
+      // Files start at self-service clearance, not only near the end of the train.
+      // If double-jump is locked, a narrower file (or a normal person) must fit.
+      if (!early && segmentAt(x).id !== "hall" && this.rng() < 0.2 + progress * 0.2) {
+        const count = kidFileClear(3, speedThere, allowDouble) && this.rng() < 0.72 + progress * 0.18 ? 3 : 2;
+        const fileEnd = x + (count - 1) * 11 + spanOf("kid") / 2;
+        if (kidFileClear(count, speedThere, allowDouble) && !inSafeJoin(fileEnd) && segmentAt(fileEnd).id === segmentAt(x).id) {
           const step = 11;
           const phase = this.rng();
           for (let i = 0; i < count; i++) this.entities.push(this.make("kid", x + i * step, 0, phase + i * 0.17));
           const covered = (count - 1) * step + spanOf("kid");
-          this.nextSpawn = x + speedThere * (gapSeconds(progress, this.rng()) + 0.4) + covered;
+          this.nextSpawn = x + speedThere * (gapSeconds(progress, this.rng(), areaPace) + 0.4) + covered;
           continue;
         }
       }
@@ -903,7 +926,7 @@ export class Game {
       this.entities.push(this.make(kind, x, OVERHEAD.has(kind) ? OVERHEAD_Y : 0, phase));
 
       const recovery = kind === "sign" || kind === "queue" || kind === "gate" ? 0.35 : 0;
-      const gap = speedThere * (gapSeconds(progress, this.rng()) + recovery) + spanOf(kind);
+      const gap = speedThere * (gapSeconds(progress, this.rng(), areaPace) + recovery) + spanOf(kind);
       const r = this.rng();
       const mid = x + gap * 0.42;
       if (r < 0.48 - progress * 0.12) {
